@@ -76,11 +76,12 @@ try:
         all_hotels = sorted(df['호텔명'].unique())
         selected_hotels = st.sidebar.multiselect("🏨 분석 대상 호텔 선택", options=all_hotels, default=[h for h in target_list if h in all_hotels])
 
-        # 3. [신규] 채널별 보기 필터 추가
+        # 3. [업데이트] 판매처(채널) 필터 - 지배인님 요청 채널 전수 반영
         st.sidebar.markdown("---")
         st.sidebar.header("📱 판매처(채널) 필터")
+        # 수집 데이터에 있는 실제 채널 리스트 추출
         all_channels = sorted(df['판매처'].unique())
-        selected_channels = st.sidebar.multiselect("원하는 채널만 선택", options=all_channels, default=all_channels)
+        selected_channels = st.sidebar.multiselect("모니터링 채널 선택", options=all_channels, default=all_channels)
 
         # 3. 엠버 핵심 객실 필터 고정
         st.sidebar.markdown("---")
