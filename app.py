@@ -6,7 +6,7 @@ st.set_page_config(page_title="앰버 AI 지배인 대시보드", layout="wide")
 st.title("🏨 앰버 7대 플랫폼 통합 AI 지배인")
 
 SHEET_ID = "지배인님의_시트_ID"
-URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+URL = f"https://docs.google.com/spreadsheets/d/1gTbVR4lfmCVa2zoXwsOqjm1VaCy9bdGWYJGaifckqrs/gviz/tq?tqx=out:csv"
 
 try:
     df = pd.read_csv(URL, encoding='utf-8')
