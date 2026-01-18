@@ -58,13 +58,15 @@ def load_data():
         data['날짜'] = data['날짜'].astype(str).str.replace(" ", "").str.strip()
         data['객실타입'] = data['객실타입'].astype(str).str.strip()
         data['판매처'] = data['판매처'].astype(str).str.strip()
-        
-        # 가격 숫자 변환
         data['가격'] = pd.to_numeric(data['가격'].astype(str).str.replace(',', '').str.replace('원', ''), errors='coerce')
         
-        # 수집시간 및 투숙일 변환
-        data['수집시간'] = pd.to_datetime(data['수집시간'], errors='coerce')
-        data['투숙일'] = pd.to_datetime(data['날짜'], errors='coerce')
+        # 날짜 데이터 처리 (그래프 핵심 컬럼)
+        data['수집시간_dt'] = pd.to_datetime(data['수집시간'], errors='coerce')
+        # '수집일' 컬럼 강제 생성 (YYYY-MM-DD 형식)
+        data['수집일'] = data['수집시간_dt'].dt.date 
+        data['투숙일_dt'] = pd.to_datetime(data['날짜'], errors='coerce')
+        
+        data = data.dropna(subset=['호텔명', '가격', '날짜', '수집일'])
         
         # 리드타임 계산 (투숙일 - 수집일)
         data['리드타임'] = (data['투숙일'] - data['수집시간']).dt.days
