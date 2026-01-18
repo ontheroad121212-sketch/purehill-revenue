@@ -15,35 +15,30 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("🏨 앰버 7대 플랫폼 통합 AI 지배인")
-st.caption("멀티 날짜 비교 및 정밀 데이터 솔팅 시스템")
+st.caption("경쟁사 최저가 매트릭스 및 가격 격차(Gap) 분석 시스템")
 
 # 2. 데이터 불러오기 및 정제 함수
 SHEET_ID = "1gTbVR4lfmCVa2zoXwsOqjm1VaCy9bdGWYJGaifckqrs"
 URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
-@st.cache_data(ttl=10) # 실시간 확인을 위해 10초마다 갱신
+@st.cache_data(ttl=10) # 10초마다 갱신
 def load_data():
     try:
-        # 구글 시트 데이터 로드
         data = pd.read_csv(URL, encoding='utf-8-sig')
         
         # [데이터 정밀 정제]
-        # 1. 호텔명과 날짜: 공백 제거
         data['호텔명'] = data['호텔명'].astype(str).str.replace(" ", "").str.strip()
         data['날짜'] = data['날짜'].astype(str).str.replace(" ", "").str.strip()
         data['객실타입'] = data['객실타입'].astype(str).str.strip()
         
-        # 2. 가격: 문자열에서 콤마(,)와 '원' 제거 후 숫자로 변환
+        # 가격 숫자 변환
         data['가격'] = data['가격'].astype(str).str.replace(',', '').str.replace('원', '')
         data['가격'] = pd.to_numeric(data['가격'], errors='coerce')
         
-        # 3. 수집시간: 날짜 형식으로 변환
+        # 수집시간 날짜 변환
         data['수집시간'] = pd.to_datetime(data['수집시간'], errors='coerce')
         
-        # 데이터 누락 행 제거
-        data = data.dropna(subset=['호텔명', '가격', '날짜'])
-        
-        return data
+        return data.dropna(subset=['호텔명', '가격', '날짜'])
     except Exception as e:
         st.error(f"데이터 로드 실패: {e}")
         return pd.DataFrame()
@@ -53,104 +48,106 @@ try:
     
     if not df.empty:
         # --- [사이드바 필터 구역] ---
-        st.sidebar.header("🔍 기본 필터")
+        st.sidebar.header("🔍 기본 분석 필터")
         
-        # 1. 날짜 멀티 선택
+        # 1. 분석 날짜 선택
         all_dates = sorted(df['날짜'].unique())
-        selected_dates = st.sidebar.multiselect("📅 투숙 예정일 선택 (복수 선택 가능)", 
+        selected_dates = st.sidebar.multiselect("📅 분석 대상 날짜 선택 (복수 가능)", 
                                                options=all_dates, 
-                                               default=[all_dates[-1]] if all_dates else [])
+                                               default=all_dates if all_dates else [])
         
-        # 2. 호텔 멀티 선택
+        # 2. 비교 호텔 선택 (지배인님의 13개 호텔 리스트 반영)
         all_hotels = sorted(df['호텔명'].unique())
-        default_hotels = [h for h in all_hotels if "엠버" in h] + ["신라호텔", "그랜드하얏트", "파르나스"]
+        default_hotels = [h for h in all_hotels if "앰버" in h] + ["신라호텔", "그랜드하얏트", "파르나스", "롯데호텔"]
         default_hotels = [h for h in default_hotels if h in all_hotels]
         
-        selected_hotels = st.sidebar.multiselect("🏨 비교 호텔 선택", 
+        selected_hotels = st.sidebar.multiselect("🏨 분석 대상 호텔 선택", 
                                                 options=all_hotels, 
-                                                default=default_hotels if default_hotels else all_hotels[:4])
+                                                default=default_hotels if default_hotels else all_hotels[:5])
 
-        # 3. 상세 솔팅 필터 (객실 및 판매처)
+        # 3. 상세 솔팅 (객실 및 채널)
         st.sidebar.markdown("---")
-        st.sidebar.header("🎯 정밀 솔팅 (선택 사항)")
-        
-        # 선택된 호텔의 객실들만 추출
-        temp_filter_df = df[df['호텔명'].isin(selected_hotels)]
-        all_rooms = sorted(temp_filter_df['객실타입'].unique())
-        selected_rooms = st.sidebar.multiselect("🛏️ 특정 객실 타입만 보기", 
-                                               options=all_rooms,
-                                               help="비워두면 선택한 호텔의 모든 객실을 보여줍니다.")
-        
-        all_channels = sorted(df['판매처'].unique())
-        selected_channels = st.sidebar.multiselect("📱 특정 판매처만 보기", 
-                                                  options=all_channels,
-                                                  help="비워두면 모든 채널을 보여줍니다.")
+        st.sidebar.header("🎯 정밀 솔팅")
+        temp_f_df = df[df['호텔명'].isin(selected_hotels)]
+        selected_rooms = st.sidebar.multiselect("🛏️ 특정 객실 타입만 보기", options=sorted(temp_f_df['객실타입'].unique()))
+        selected_channels = st.sidebar.multiselect("📱 특정 판매처만 보기", options=sorted(df['판매처'].unique()))
 
         # --- 데이터 필터링 적용 ---
         f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels))]
-        
-        if selected_rooms:
-            f_df = f_df[f_df['객실타입'].isin(selected_rooms)]
-        if selected_channels:
-            f_df = f_df[f_df['판매처'].isin(selected_channels)]
+        if selected_rooms: f_df = f_df[f_df['객실타입'].isin(selected_rooms)]
+        if selected_channels: f_df = f_df[f_df['판매처'].isin(selected_channels)]
 
         if not f_df.empty:
-            # --- 1. 실시간 요약 지표 (솔팅 기준) ---
-            st.subheader("📊 선택 데이터 요약")
-            m_col1, m_col2, m_col3 = st.columns(3)
+            # ---------------------------------------------------------
+            # 1. 경쟁사 최저가 비교 매트릭스 (지배인님 요청 사항)
+            # ---------------------------------------------------------
+            st.subheader("🎯 시장 최저가 요약 매트릭스")
             
-            with m_col1:
-                # 엠버 최저가 (솔팅된 필터 내에서)
-                amber_val = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
-                if not amber_val.empty:
-                    st.metric("선택 범위 내 엠버 최저가", f"{amber_val['가격'].min():,.0f}원")
-                else:
-                    st.metric("선택 범위 내 엠버", "데이터 없음")
+            # 날짜별 호텔 최저가 피벗
+            pivot_df = f_df.groupby(['호텔명', '날짜'])['가격'].min().unstack()
             
-            with m_col2:
-                st.metric("비교 그룹 최저가", f"{f_df['가격'].min():,.0f}원")
+            # 최저가 하이라이트 스타일 함수
+            def highlight_min(s):
+                is_min = s == s.min()
+                return ['background-color: #FFEBEE; font-weight: bold' if v else '' for v in is_min]
+
+            st.dataframe(pivot_df.style.format("{:,.0f}원", na_rep="-").apply(highlight_min, axis=0), 
+                         use_container_width=True)
+            st.caption("💡 분홍색 셀: 해당 날짜의 전체 호텔 중 최저가")
+
+            # ---------------------------------------------------------
+            # 2. 엠버퓨어힐 대비 가격 격차 (Gap Analysis)
+            # ---------------------------------------------------------
+            amber_keyword = "엠버"
+            amber_data = f_df[f_df['호텔명'].str.contains(amber_keyword, na=False)]
             
-            with m_col3:
-                st.metric("비교 그룹 평균가", f"{f_df['가격'].mean():,.0f}원")
+            if not amber_data.empty:
+                st.markdown("---")
+                st.subheader("⚖️ 엠버퓨어힐 대비 가격 격차 (Market Gap)")
+                
+                # 날짜별 엠버의 최저가 추출
+                amber_min_series = amber_data.groupby('날짜')['가격'].min()
+                
+                gap_df = pivot_df.copy()
+                for date in gap_df.columns:
+                    if date in amber_min_series:
+                        gap_df[date] = gap_df[date] - amber_min_series[date]
+                
+                def color_gap(val):
+                    if val < 0: return 'color: #D32F2F; font-weight: bold' # 우리보다 쌈 (위험)
+                    if val > 0: return 'color: #1976D2' # 우리보다 비쌈 (양호)
+                    return ''
+
+                st.dataframe(gap_df.style.format("{:+,.0f}원", na_rep="-").applymap(color_gap), 
+                             use_container_width=True)
+                st.caption("💡 빨간색(-): 엠버보다 저렴한 경쟁사 / 파란색(+): 엠버보다 비싼 경쟁사")
 
             st.markdown("---")
 
-            # --- 2. 상세 요금 일람표 (지배인님 요청 사항) ---
-            st.subheader("📋 상세 요금 데이터 (날짜/가격순 솔팅)")
-            # 날짜별, 호텔별, 가격 낮은순 정렬
-            display_df = f_df.sort_values(['날짜', '호텔명', '가격'], ascending=[True, True, True])
-            
-            st.dataframe(
-                display_df[['날짜', '호텔명', '객실타입', '판매처', '가격', '수집시간']],
-                use_container_width=True,
-                hide_index=True
-            )
+            # 3. 상세 데이터 표 및 분포
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                st.subheader("📋 실시간 상세 요금 일람")
+                st.dataframe(f_df.sort_values(['날짜', '가격'])[['날짜', '호텔명', '객실타입', '판매처', '가격']], 
+                             use_container_width=True, hide_index=True)
+            with col2:
+                st.subheader("📊 호텔별 가격 분포")
+                fig_box = px.box(f_df, x="호텔명", y="가격", color="호텔명", points="all")
+                fig_box.update_layout(showlegend=False)
+                st.plotly_chart(fig_box, use_container_width=True)
 
-            st.markdown("---")
-
-            # --- 3. 가격 변동 추이 그래프 ---
-            st.subheader("📈 가격 변동 히스토리 (수집 시점별)")
-            # 여러 날짜를 비교할 수 있도록 날짜를 심볼로 구분
-            fig_trend = px.line(f_df.sort_values('수집시간'), 
-                                x='수집시간', y='가격', color='호텔명', symbol='날짜',
-                                markers=True, hover_data=['객실타입', '판매처'],
-                                title="솔팅된 호텔/객실/채널 기반 가격 트렌드")
-            
-            st.plotly_chart(fig_trend, use_container_width=True)
-
-            # --- 4. 원본 데이터 다운로드 ---
-            with st.expander("📥 전체 수집 데이터 확인 및 백업"):
-                st.write(df)
-                csv = df.to_csv(index=False).encode('utf-8-sig')
-                st.download_button("데이터 다운로드 (CSV)", data=csv, file_name=f"amber_data_export.csv", mime='text/csv')
+            # 4. 수집 트렌드 그래프
+            st.subheader("📉 수집 시점별 최저가 추이")
+            fig_line = px.line(f_df.sort_values('수집시간'), x='수집시간', y='가격', 
+                               color='호텔명', line_dash='날짜', markers=True,
+                               hover_data=['판매처', '객실타입'])
+            st.plotly_chart(fig_line, use_container_width=True)
 
         else:
-            st.warning("선택하신 조건(날짜, 호텔, 객실, 채널)에 맞는 데이터가 시트에 없습니다. 필터를 조정해 주세요.")
-            st.info(f"현재 시트에 있는 날짜: {df['날짜'].unique()}")
-            st.info(f"현재 시트에 있는 호텔: {df['호텔명'].unique()}")
+            st.warning("필터 조건에 맞는 데이터가 없습니다.")
 
     else:
-        st.warning("구글 시트에서 불러올 데이터가 없습니다. 수집기를 먼저 가동해 주세요.")
+        st.warning("구글 시트가 비어있습니다. 수집기를 먼저 가동해주세요.")
 
 except Exception as e:
     st.error(f"대시보드 구동 중 에러 발생: {e}")
