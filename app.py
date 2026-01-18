@@ -119,7 +119,7 @@ try:
         all_channels = sorted(df['판매처'].unique())
         selected_channels = st.sidebar.multiselect("📱 판매처(채널) 필터", options=all_channels, default=all_channels)
 
-        # 🚀 [업데이트] 엠버 10대 객실 타입 개별 선택 필터
+        # 🚀 엠버 10대 객실 개별 필터
         st.sidebar.markdown("---")
         st.sidebar.subheader("💎 엠버 객실 정밀 선택")
         ember_room_groups = {
@@ -134,16 +134,19 @@ try:
             "HDF (힐 루나 패밀리)": ["힐 루나 패밀리", "Hill Luna Family"],
             "PPV (풀빌라)": ["프라이빗 풀 빌라", "프라이빗 풀빌라", "Forest Private Pool Villa"]
         }
-        
-        selected_codes = st.sidebar.multiselect(
-            "🎯 분석 객실 선택", 
-            options=list(ember_room_groups.keys()), 
-            default=list(ember_room_groups.keys())
-        )
+        selected_codes = st.sidebar.multiselect("분석 객실 선택", options=list(ember_room_groups.keys()), default=list(ember_room_groups.keys()))
         
         active_keywords = []
         for code in selected_codes:
             active_keywords.extend(ember_room_groups[code])
+
+        # 1차 필터링 적용
+        f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels)) & (df['판매처'].isin(selected_channels))]
+        
+        # 엠버 전용 필터 적용
+        if active_keywords:
+            ember_mask = f_df['호텔명'].str.contains("엠버", na=False)
+            f_df = f_df[ (~ember_mask) | (f_df['객실타입'].str.contains('|'.join(active_keywords), na=False)) ]
 
         # 1차 필터링
         f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels)) & (df['판매처'].isin(selected_channels))]
