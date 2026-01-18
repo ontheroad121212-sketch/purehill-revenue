@@ -6,7 +6,7 @@ import numpy as np
 from datetime import datetime
 
 # 1. 페이지 설정 및 디자인
-st.set_page_config(page_title="엠버 AI 지배인 v6.1", layout="wide")
+st.set_page_config(page_title="엠버 AI 지배인 v6.2", layout="wide")
 
 # 직관성을 극대화하는 맞춤형 CSS
 st.markdown("""
@@ -25,8 +25,8 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏨 엠버 7대 플랫폼 통합 AI 지배인 v6.1")
-st.caption("최저가 정밀 매칭 및 AI 전략 제안 시스템")
+st.title("🏨 엠버 7대 플랫폼 통합 AI 지배인 v6.2")
+st.caption("매트릭스 상세 분석 및 AI 전략 제안 시스템")
 
 # 2. 데이터 불러오기 및 정밀 정제 함수
 SHEET_ID = "1gTbVR4lfmCVa2zoXwsOqjm1VaCy9bdGWYJGaifckqrs"
@@ -40,6 +40,7 @@ def load_data():
         data['호텔명'] = data['호텔명'].astype(str).str.replace(" ", "").str.strip()
         data['날짜'] = data['날짜'].astype(str).str.replace(" ", "").str.strip()
         data['객실타입'] = data['객실타입'].astype(str).str.strip()
+        data['판매처'] = data['판매처'].astype(str).str.strip()
         
         # 가격 숫자 변환
         data['가격'] = pd.to_numeric(data['가격'].astype(str).str.replace(',', '').str.replace('원', ''), errors='coerce')
@@ -82,20 +83,14 @@ try:
         existing_rooms = [r for r in ember_core_rooms if r in df['객실타입'].unique()]
         selected_core_rooms = st.sidebar.multiselect("🛏️ 엠버 분석 객실 선택", options=existing_rooms, default=existing_rooms)
 
-        # 4. 필터링 적용 (정밀 최저가 산출용 원본 보존 필터링)
+        # 4. 필터링 적용
         f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels))]
-        
-        # 엠버 데이터만 따로 정밀 추출 (사이드바 객실 필터 적용 전 최저가 확보)
-        amber_all_rooms = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
-        
-        # 핵심 객실 필터 적용
         if selected_core_rooms:
+            # 엠버는 선택된 객실만, 타 호텔은 전체 유지
             f_df = f_df[ (~f_df['호텔명'].str.contains("엠버")) | (f_df['객실타입'].isin(selected_core_rooms)) ]
 
-        # 필터링 후 엠버 데이터 (메트릭 및 신호등용)
+        # 엠버 데이터 정밀 추출
         amber_in_filter = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
-        
-        # [최저가 정밀 산출] 데이터가 있을 때만 계산
         amber_min_val = amber_in_filter['가격'].min() if not amber_in_filter.empty else 0
 
         # ---------------------------------------------------------
@@ -107,7 +102,6 @@ try:
             col_a, col_b = st.columns(2)
             with col_a:
                 st.write("🚩 **긴급 점검 및 조치**")
-                # 파리티 경보 유무 확인
                 parity_issue = False
                 if not amber_in_filter.empty:
                     for (date, room), group in amber_in_filter.groupby(['날짜', '객실타입']):
@@ -116,7 +110,6 @@ try:
                 if parity_issue: st.write("- 🚨 현재 일부 채널에서 **가격 역전**이 감지되었습니다. 즉시 확인하십시오.")
                 else: st.write("- ✅ 모든 채널의 가격 파리티가 깨끗합니다.")
 
-                # 땡처리 호텔 감지
                 dumping_list = []
                 for h in selected_hotels:
                     if "엠버" in h: continue
@@ -132,19 +125,13 @@ try:
             with col_b:
                 st.write("📈 **매출 극대화 제안**")
                 if amber_min_val > 0:
-                    comp_df = f_df[~f_df['호텔명'].str.contains("엠버")]
-                    comp_min = comp_df['가격'].min() if not comp_df.empty else 0
-                    if comp_min > 0:
-                        if amber_min_val > comp_min + 50000: st.write("- 📉 시장 대비 엠버가 고가입니다. 소폭 인하로 예약 선점이 필요합니다.")
-                        elif amber_min_val < comp_min - 30000: st.write("- 💰 엠버가 압도적 저가입니다! 만 원 정도 인상하여 수익률을 높이십시오.")
-                        else: st.write("- ✨ 현재 적정 시장가를 유지 중입니다. 현 상태를 유지하십시오.")
-                else:
-                    st.write("- 🔍 분석할 엠버 데이터가 부족합니다.")
+                    comp_min = f_df[~f_df['호텔명'].str.contains("엠버")]['가격'].min() if not f_df[~f_df['호텔명'].str.contains("엠버")].empty else 0
+                    if amber_min_val > comp_min + 50000: st.write("- 📉 시장 대비 엠버가 고가입니다. 소폭 인하로 예약 선점이 필요합니다.")
+                    elif amber_min_val < comp_min - 30000: st.write("- 💰 엠버가 압도적 저가입니다! 만 원 정도 인상하여 수익률을 높이십시오.")
+                    else: st.write("- ✨ 현재 적정 시장가를 유지 중입니다. 현 상태를 유지하십시오.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # ---------------------------------------------------------
-        # 🟢 실시간 가격 역전 탐지 (Parity Check)
-        # ---------------------------------------------------------
+        # 🟢 실시간 가격 역전 상세 알림
         st.subheader("⚠️ 실시간 가격 역전 상세 알림")
         if not amber_in_filter.empty:
             parity_alerts = []
@@ -160,14 +147,38 @@ try:
                 for alert in parity_alerts[:5]: st.markdown(f'<div class="parity-alert">{alert}</div>', unsafe_allow_html=True)
             else: st.success("✅ 가격 파리티 정상")
 
-        # ---------------------------------------------------------
         # 📉 [핵심 기능 2] 경쟁사 땡처리 추적 (Booking Pace)
-        # ---------------------------------------------------------
         st.subheader("📉 투숙 임박 땡처리 추적 (Lead-time Analysis)")
         pace_trend = f_df.groupby(['리드타임', '호텔명'])['가격'].min().reset_index()
         fig_pace = px.line(pace_trend, x='리드타임', y='가격', color='호텔명', markers=True, title="리드타임별 최저가 추이 (오른쪽이 투숙일 임박)")
         fig_pace.update_xaxes(autorange="reversed")
         st.plotly_chart(fig_pace, use_container_width=True)
+
+        st.markdown("---")
+
+        # ---------------------------------------------------------
+        # 🚦 [지배인님 요청] 일자별 호텔 상세 최저가 매트릭스
+        # ---------------------------------------------------------
+        st.subheader("🚦 일자별 호텔 상세 최저가 매트릭스 (판매처/객실 포함)")
+        
+        def get_min_detail(x):
+            if x.empty: return "-"
+            min_row = x.loc[x['가격'].idxmin()]
+            return f"{min_row['가격']:,.0f}원\n({min_row['판매처']} / {min_row['객실타입']})"
+
+        detail_pivot = f_df.groupby(['호텔명', '날짜']).apply(get_min_detail).unstack()
+
+        def color_signal(val):
+            if val == "-" or amber_min_val == 0: return ''
+            try:
+                price_val = int(val.split('원')[0].replace(',', ''))
+                if price_val < amber_min_val - 30000: return 'background-color: #ffcccc; color: #d32f2f; font-weight: bold;'
+                if price_val < amber_min_val: return 'background-color: #fff3cd;'
+                return 'background-color: #d4edda;'
+            except: return ''
+
+        st.dataframe(detail_pivot.style.applymap(color_signal), use_container_width=True)
+        st.caption("※ 표기 형식: 최저가 (판매처 / 객실타입)")
 
         st.markdown("---")
 
@@ -179,31 +190,20 @@ try:
         m3.metric("시장 평균가", f"{f_df['가격'].mean():,.0f}원" if not f_df.empty else "0원")
         m4.metric("활성 1위 채널", f_df['판매처'].value_counts().idxmax() if not f_df.empty else "없음")
 
-        # 2. 신호등 매트릭스
-        st.subheader("🚦 일자별 호텔 최저가 매트릭스")
-        if not f_df.empty:
-            pivot_df = f_df.groupby(['호텔명', '날짜'])['가격'].min().unstack()
-            def color_signal(val):
-                if pd.isna(val) or amber_min_val == 0: return ''
-                if val < amber_min_val - 30000: return 'background-color: #ffcccc; color: #d32f2f;'
-                if val < amber_min_val: return 'background-color: #fff3cd;'
-                return 'background-color: #d4edda;'
-            st.dataframe(pivot_df.style.format("{:,.0f}원", na_rep="-").applymap(color_signal), use_container_width=True)
-
-        # 3. 엠버 핵심 객실 히트맵
+        # 2. 엠버 핵심 객실 히트맵
         st.subheader("💎 엠버 핵심 객실별/채널별 최저가 분포 (Heatmap)")
         if not amber_in_filter.empty:
             amber_pivot = amber_in_filter.pivot_table(index='객실타입', columns='판매처', values='가격', aggfunc='min')
             st.plotly_chart(px.imshow(amber_pivot, text_auto=',.0f', color_continuous_scale='RdYlGn_r', aspect="auto"), use_container_width=True)
 
-        # 4. 날짜별 전수 추적 그래프
+        # 3. 날짜별 전수 추적 그래프
         st.subheader("📊 날짜별 전수 추적 그래프")
         for date in selected_dates:
             d_df = f_df[f_df['날짜'] == date].sort_values('수집시간')
             if not d_df.empty:
                 st.plotly_chart(px.line(d_df, x='수집시간', y='가격', color='호텔명', markers=True, title=f"📅 {date} 투숙일 실시간 가격 추이"), use_container_width=True)
 
-        # 5. 가격 조정 시뮬레이터
+        # 4. 시뮬레이터
         st.markdown("---")
         st.subheader("🎯 엠버 가격 조정 시뮬레이터")
         if amber_min_val > 0:
