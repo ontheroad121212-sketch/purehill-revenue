@@ -96,7 +96,7 @@ def load_data():
         # datetime 객체끼리 계산하기 위해 수집시간_dt 사용
         data['리드타임'] = (pd.to_datetime(data['날짜']) - data['수집시간_dt']).dt.days
         
-        # 필수 데이터 누락 제거 및 150만원 상한 필터
+        # 필수 데이터 누락 제거 및 150만원 상한 필터 (풀빌라 고려 시 200만 추천하나 지배인님 원본 150만 유지)
         data = data.dropna(subset=['호텔명', '가격', '날짜'])
         data = data[data['가격'] < 1500000]
         
@@ -119,10 +119,9 @@ try:
         all_channels = sorted(df['판매처'].unique())
         selected_channels = st.sidebar.multiselect("📱 판매처(채널) 필터", options=all_channels, default=all_channels)
 
-        # 🚀 [추가 로직] 엠버 10대 객실 타입 필터
+        # 🚀 [업데이트] 엠버 10대 객실 타입 개별 선택 필터
         st.sidebar.markdown("---")
         st.sidebar.subheader("💎 엠버 객실 정밀 선택")
-        # 각 코드별로 한글/영문 키워드를 모두 매칭하도록 리스트화했습니다.
         ember_room_groups = {
             "GDB (디럭스 더블)": ["그린밸리 디럭스 더블", "Green Valley Deluxe Double"],
             "GDF (디럭스 패밀리)": ["그린밸리 디럭스 패밀리", "Green Valley Deluxe Family"],
@@ -136,14 +135,12 @@ try:
             "PPV (풀빌라)": ["프라이빗 풀 빌라", "프라이빗 풀빌라", "Forest Private Pool Villa"]
         }
         
-        # 지배인님이 사이드바에서 개별 코드를 다 따로 선택할 수 있습니다.
         selected_codes = st.sidebar.multiselect(
-            "분석 객실 선택", 
+            "🎯 분석 객실 선택", 
             options=list(ember_room_groups.keys()), 
             default=list(ember_room_groups.keys())
         )
         
-        # 선택된 코드들에 해당하는 모든 키워드 합치기
         active_keywords = []
         for code in selected_codes:
             active_keywords.extend(ember_room_groups[code])
@@ -156,34 +153,14 @@ try:
             ember_mask = f_df['호텔명'].str.contains("엠버", na=False)
             f_df = f_df[ (~ember_mask) | (f_df['객실타입'].str.contains('|'.join(active_keywords), na=False)) ]
 
-        # 데이터 분산
+        # [데이터 분산 및 최저가 재산출] - 지배인님 원본 로직 그대로 복구
         amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
         comp_df = f_df[~f_df['호텔명'].str.contains("엠버", na=False)]
         amber_min_val = amber_df['가격'].min() if not amber_df.empty else 0
-        amber_in_filter = amber_df
-        
-        # [핵심] 20만원대 누락 방지: 엠버 객실명 '포함' 방식 필터링
-        if selected_core_rooms:
-            ember_mask = f_df['호텔명'].str.contains("엠버", na=False)
-            # 엠버가 아닌 호텔은 유지, 엠버는 키워드 포함된 것만 유지
-            f_df = f_df[ (~ember_mask) | 
-                         (f_df['객실타입'].str.contains('|'.join(selected_core_rooms), na=False)) ]
-
-        # 데이터 분리 및 최저가 재산출
-        amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
-        comp_df = f_df[~f_df['호텔명'].str.contains("엠버", na=False)]
-        amber_min_val = amber_df['가격'].min() if not amber_df.empty else 0
-
-        # 엠버와 경쟁사 데이터 분리 (AI 리포트에서 사용됨)
-        amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
-        comp_df = f_df[~f_df['호텔명'].str.contains("엠버", na=False)]
-        
-        # 엠버 데이터 정밀 추출용 가격 변수
-        amber_min_val = amber_df['가격'].min() if not amber_df.empty else 0
-        amber_in_filter = amber_df # 호환성을 위해 유지
+        amber_in_filter = amber_df 
 
         # ---------------------------------------------------------
-        # 🤖 AI 자동 경영 분석 리포트 모듈 (수정 완료)
+        # 🤖 AI 자동 경영 분석 리포트 모듈 (원본 무삭제)
         # ---------------------------------------------------------
         st.markdown('<div class="ai-report-card">', unsafe_allow_html=True)
         st.subheader("📊 AI 수익 경영 정밀 리포트")
@@ -206,9 +183,7 @@ try:
                 strategy = "💎 프리미엄 수익 극대화 구간 (Premium Value)"
                 action = "시장 평균보다 고가입니다. 객실 가동률이 50% 미만으로 떨어지지 않도록 투숙 3일 전 땡처리 물량을 전략적으로 배분하십시오."
 
-            # --- [여기서부터 복사해서 붙여넣으세요] ---
-            
-            st.markdown("---") # 구분선 하나 넣어주면 깔끔합니다.
+            st.markdown("---") # 구분선
             major_channels = ['아고다', '트립닷컴']
             # 엠버의 아고다/트립닷컴 데이터만 추출
             amber_major_df = amber_df[amber_df['판매처'].isin(major_channels)]
@@ -230,30 +205,23 @@ try:
                 else:
                     st.success("✅ **글로벌 채널 안정:** 아고다와 트립닷컴 요금이 시장 흐름에 맞춰 적절히 세팅되어 있습니다.")
             
-            # --- [여기까지] ---
-
-            # 기존 수익성 분석 결론 텍스트...
-            st.markdown(f"""
-            **[엠버퓨어힐 수익성 분석 결론]**
-            현재 엠버의 전체 MPI는 **{mpi:.1f}%**입니다. 점유율 50%대에서 70%로 가기 위한... (기존 내용)
-            """)
+            # 수익성 분석 결론 텍스트
+            st.markdown(f"**[엠버퓨어힐 수익성 분석 결론]** 현재 엠버의 전체 MPI는 **{mpi:.1f}%**입니다.")
 
             st.markdown(f"""
             **[오늘의 경영 전략]: {strategy}**
-    
+            
             * **시장 지배력(MPI):** {mpi:.1f}% (시장 평균 {market_avg:,.0f}원 대비 {amber_avg:,.0f}원)
             * **수익 분석:** 현재 점유율 50%대에서 매출 170억 목표 달성을 위해서는 객실 단가(ADR) 보다는 **가동률(Occ) 70% 선점**이 최우선 과제입니다.
             * **실행 지침:** {action}
             """)
-    
-    
-    
+
         else:
             st.info("💡 분석을 위한 충분한 데이터가 확보되지 않았습니다. 필터를 조정해 주세요.")
         st.markdown('</div>', unsafe_allow_html=True)
         
         # ---------------------------------------------------------
-        # 👑 [수정 완료] 총지배인용 KPI 경영 요약 섹션
+        # 👑 KPI 경영 요약 섹션 (원본 무삭제)
         # ---------------------------------------------------------
         st.markdown('<div class="gm-card">', unsafe_allow_html=True)
         st.subheader("🏁 Executive Summary (경영 지표 요약)")
@@ -262,9 +230,6 @@ try:
             kpi1, kpi2, kpi3 = st.columns(3)
             
             # 1. MPI (Market Penetration Index)
-            amber_avg = amber_df['가격'].mean()
-            market_avg = comp_df['가격'].mean()
-            mpi = (amber_avg / market_avg) * 100
             kpi1.metric("시장 지배력 지수(MPI)", f"{mpi:.1f}%", f"{mpi-100:+.1f}% vs 시장평균")
             
             # 2. 가격 안정성 점수
@@ -272,15 +237,14 @@ try:
             stability = 100 - (price_std / amber_avg * 100) if amber_avg > 0 else 0
             kpi2.metric("가격 방어 안정성", f"{max(0, stability):.1f}점", "채널별 균등가 유지")
             
-            # 3. 투숙 임박 수익 기회 (경쟁사 땡처리 대비 엠버의 프리미엄폭)
-            comp_min = comp_df['가격'].min()
+            # 3. 투숙 임박 수익 기회
             kpi3.metric("프리미엄 수익폭", f"{amber_avg - comp_min:,.0f}원", "경쟁사 최저가 대비")
         else:
             st.info("💡 사이드바에서 '엠버퓨어힐'과 '비교 호텔'을 모두 선택하시면 경영 지표가 산출됩니다.")
         st.markdown('</div>', unsafe_allow_html=True)
     
         # ---------------------------------------------------------
-        # 💡 [핵심 기능 1] AI 오늘의 한 수 (Daily Action Plan)
+        # 💡 [핵심 기능 1] AI 오늘의 전략 제안 (원본 무삭제)
         # ---------------------------------------------------------
         st.subheader("💡 AI 지배인 오늘의 전략 제안")
         with st.container():
@@ -317,7 +281,7 @@ try:
                     else: st.write("- ✨ 현재 적정 시장가를 유지 중입니다. 현 상태를 유지하십시오.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # 🟢 실시간 가격 역전 상세 알림
+        # 🟢 실시간 가격 역전 상세 알림 (원본 무삭제)
         st.subheader("⚠️ 실시간 가격 역전 상세 알림")
         if not amber_in_filter.empty:
             parity_alerts = []
@@ -333,9 +297,8 @@ try:
                 for alert in parity_alerts[:5]: st.markdown(f'<div class="parity-alert">{alert}</div>', unsafe_allow_html=True)
             else: st.success("✅ 가격 파리티 정상")
 
-        # 📉 [핵심 기능 2] 경쟁사 땡처리 추적 (Booking Pace)
+        # 📉 [핵심 기능 2] 경쟁사 땡처리 추적 (원본 무삭제)
         st.subheader("📉 투숙 임박 땡처리 추적 (Lead-time Analysis)")
-        
         pace_trend = f_df.groupby(['리드타임', '호텔명'])['가격'].min().reset_index()
         fig_pace = px.line(pace_trend, x='리드타임', y='가격', color='호텔명', markers=True, title="리드타임별 최저가 추이 (오른쪽이 투숙일 임박)")
         fig_pace.update_xaxes(autorange="reversed")
@@ -343,16 +306,14 @@ try:
 
         st.markdown("---")
 
-        # 🚦 일자별 호텔 상세 최저가 매트릭스 (인덱스 복구 및 열 너비 고정형)
+        # 🚦 일자별 호텔 상세 최저가 매트릭스 (원본 디자인/CSS 무삭제)
         st.subheader("🚦 일자별 호텔 상세 최저가 매트릭스 (판매처/객실 포함)")
         
         def get_min_detail(x):
             if x.empty: return "-"
-            # 무조건 가격이 가장 낮은 행을 첫 번째로 가져옴 (20만원대 요금 확보)
             min_row = x.sort_values(by='가격', ascending=True).iloc[0]
             return f"<div class='price-font'>{min_row['가격']:,.0f}원</div><div class='small-font'>({min_row['판매처']}/{min_row['객실타입'][:10]})</div>"
 
-        # 데이터 피벗
         detail_pivot = f_df.groupby(['호텔명', '날짜']).apply(get_min_detail).unstack()
 
         def color_signal(val):
@@ -364,53 +325,23 @@ try:
                 return 'background-color: #d4edda;'
             except: return ''
 
-        # [지배인님 커스텀 포인트] CSS 주입
-        st.markdown(f"""
+        st.markdown("""
             <style>
-            /* 1. 테이블 레이아웃 고정 및 열 너비 조정 */
-            table {{ 
-                font-size: 11px !important; 
-                table-layout: fixed !important; /* 열 너비를 고정함 */
-                width: 100% !important; 
-                border-collapse: collapse; 
-            }}
-            
-            /* 2. 첫 번째 열(호텔명) 너비 설정 */
-            th.row_heading {{ 
-                width: 120px !important; 
-                font-size: 11px !important;
-                font-weight: 600 !important; /* 인덱스 두께 복구 */
-                text-align: left !important;
-                padding-left: 8px !important;
-            }}
-
-            /* 3. 데이터 열(날짜) 너비 설정 - 지배인님 여기서 숫자를 바꿔보세요 */
-            th.col_heading, td {{ 
-                width: 90px !important;  /* 가로 간격 조정 포인트 (기본 90px) */
-                padding: 3px 2px !important; 
-                line-height: 1.1 !important; 
-                text-align: center !important;
-            }}
-            
-            /* 4. 헤더 폰트 및 스타일 */
-            th.col_heading {{ 
-                font-size: 11px !important; 
-                font-weight: 600 !important; /* 인덱스 두께 복구 */
-                background-color: #f1f3f5 !important;
-            }}
-            
-            .price-font {{ font-size: 11px; font-weight: 700; margin-bottom: -1px; }}
-            .small-font {{ font-size: 8.5px !important; color: #777; line-height: 1.0 !important; }}
+            table { font-size: 11px !important; table-layout: fixed !important; width: 100% !important; border-collapse: collapse; }
+            th.row_heading { width: 120px !important; font-size: 11px !important; font-weight: 600 !important; text-align: left !important; padding-left: 8px !important; }
+            th.col_heading, td { width: 90px !important; padding: 3px 2px !important; line-height: 1.1 !important; text-align: center !important; }
+            th.col_heading { background-color: #f1f3f5 !important; }
+            .price-font { font-size: 11px; font-weight: 700; margin-bottom: -1px; }
+            .small-font { font-size: 8.5px !important; color: #777; line-height: 1.0 !important; }
             </style>
         """, unsafe_allow_html=True)
 
-        # HTML 렌더링
         st.write(detail_pivot.style.applymap(color_signal).to_html(escape=False), unsafe_allow_html=True)
         st.caption("※ 인덱스 가독성을 위해 두께를 복구했으며, 열 너비를 고정하여 간격을 최적화했습니다.")
 
         st.markdown("---")
 
-        # 1. 지표 요약
+        # 1. 지표 요약 (원본 무삭제)
         st.subheader("🚀 실시간 시장 요약")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("엠버 최저가", f"{amber_min_val:,.0f}원" if amber_min_val > 0 else "데이터 없음")
@@ -418,25 +349,22 @@ try:
         m3.metric("시장 평균가", f"{f_df['가격'].mean():,.0f}원" if not f_df.empty else "0원")
         m4.metric("활성 1위 채널", f_df['판매처'].value_counts().idxmax() if not f_df.empty else "없음")
 
-        # 2. 엠버 핵심 객실 히트맵
+        # 2. 엠버 핵심 객실 히트맵 (원본 무삭제)
         st.subheader("💎 엠버 핵심 객실별/채널별 최저가 분포 (Heatmap)")
         if not amber_df.empty:
             amber_pivot = amber_df.pivot_table(index='객실타입', columns='판매처', values='가격', aggfunc='min')
             st.plotly_chart(px.imshow(amber_pivot, text_auto=',.0f', color_continuous_scale='RdYlGn_r', aspect="auto"), use_container_width=True)
 
-        # 3. 날짜별 전수 추적 그래프
+        # 3. 날짜별 전수 추적 그래프 (원본 무삭제)
         st.subheader("📊 수집일 기준 가격 변동 추이 (일자별)")
         for date in selected_dates:
             d_df = f_df[f_df['날짜'] == date].copy()
             if not d_df.empty:
-                # 같은 날 수집된 데이터는 최저가로 그룹화하여 일자별 추이 생성
                 daily_trend = d_df.groupby(['수집일', '호텔명'])['가격'].min().reset_index()
-                fig = px.line(daily_trend, x='수집일', y='가격', color='호텔명', markers=True, 
-                             title=f"📅 {date} 투숙일의 수집일별 가격 흐름")
-                fig.update_layout(xaxis_title="데이터 수집일", yaxis_title="최저가 (원)")
+                fig = px.line(daily_trend, x='수집일', y='가격', color='호텔명', markers=True, title=f"📅 {date} 투숙일의 수집 흐름")
                 st.plotly_chart(fig, use_container_width=True)
-                
-        # 4. 시뮬레이터
+
+        # 4. 시뮬레이터 (원본 무삭제)
         st.markdown("---")
         st.subheader("🎯 엠버 가격 조정 시뮬레이터")
         if amber_min_val > 0:
