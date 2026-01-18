@@ -83,8 +83,6 @@ try:
     if not df.empty:
         # --- [사이드바 필터 구역] ---
         st.sidebar.header("🔍 분석 필터 설정")
-        all_dates = sorted(df['날짜'].unique()) 
-        selected_dates = st.sidebar.multiselect("📅 투숙일 선택", options=all_dates, default=[all_dates[-1]])
         
         # 1. 날짜 멀티 선택
         all_dates = sorted(df['날짜'].unique())
