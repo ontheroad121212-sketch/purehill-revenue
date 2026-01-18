@@ -8,7 +8,7 @@ from datetime import datetime
 # 1. 페이지 설정 및 디자인
 st.set_page_config(page_title="엠버 AI 지배인 v6.2", layout="wide")
 
-# 총지배인용 프리미엄 다크 네이비 테마
+# 디자인 수정: 남색 바(gm-card) 내부의 가독성 향상
 st.markdown("""
     <style>
     .main { background-color: #f4f7f6; }
@@ -17,18 +17,16 @@ st.markdown("""
         border-radius: 15px; margin-bottom: 25px; border-left: 10px solid #e0e1dd;
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid #e9ecef; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-    div[data-testid="stMetricValue"] { font-size: 28px; font-weight: 700; color: #1a1c1e; }
-    .action-card { 
-        background-color: #f0f7ff; border-left: 5px solid #007bff; padding: 20px; 
-        border-radius: 8px; margin-bottom: 20px;
-    }
-    .parity-alert { 
-        background-color: #fff5f5; border-left: 5px solid #ff4b4b; padding: 15px; 
-        border-radius: 8px; margin-bottom: 10px; color: #d32f2f; font-weight: bold;
-    }
+    .gm-card h3 { color: #e0e1dd !important; margin-bottom: 20px; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid #e9ecef; }
+    div[data-testid="stMetricValue"] { font-size: 28px; font-weight: 700; }
+    .action-card { background-color: #f0f7ff; border-left: 5px solid #007bff; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+    .parity-alert { background-color: #fff5f5; border-left: 5px solid #ff4b4b; padding: 15px; border-radius: 8px; margin-bottom: 10px; color: #d32f2f; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
+
+st.title("🏨 엠버 7대 플랫폼 통합 AI 지배인 v7.2")
+st.caption("매트릭스 상세 분석 및 총지배인용 KPI 리포트 시스템")
 
 # 직관성을 극대화하는 맞춤형 CSS
 st.markdown("""
