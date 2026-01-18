@@ -64,7 +64,7 @@ st.markdown("""
     .small-font {
         font-size: 9px !important; /* 0.65em 상당 */
         color: #666 !important;
-        line-height: 0.8 !important;
+        line-height: 1.1 !important;
         display: block;
         margin-top: 1px;
     }
