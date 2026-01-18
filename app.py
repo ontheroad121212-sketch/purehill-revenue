@@ -74,6 +74,25 @@ try:
         all_hotels = sorted(df['호텔명'].unique())
         selected_hotels = st.sidebar.multiselect("🏨 분석 대상 호텔 선택", options=all_hotels, default=[h for h in target_list if h in all_hotels])
 
+        # 3. [지배인님 요청] 엠버 핵심 객실 필터
+        st.sidebar.markdown("---")
+        st.sidebar.header("🎯 엠버 전용 핵심 객실")
+        ember_core_rooms = ["그린밸리 디럭스 더블", "힐 엠버 트윈", "힐 파인 더블"]
+        # 데이터 내에 실제 존재하는 이름인지 확인 후 기본값 설정
+        existing_core_rooms = [r for r in ember_core_rooms if r in df['객실타입'].unique()]
+        selected_core_rooms = st.sidebar.multiselect("🛏️ 엠버 분석 객실 선택", options=existing_core_rooms, default=existing_core_rooms)
+
+        # 전체 필터링 적용
+        f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels))]
+    
+        # 만약 지배인님이 엠버 특정 객실을 선택했다면, 데이터프레임을 해당 객실 기준으로 필터링
+        # (단, 경쟁사 비교를 위해 엠버 외 호텔은 모든 객실을 보여주되, 엠버는 선택된 객실만 남김)
+        if selected_core_rooms:
+        f_df = f_df[~f_df['호텔명'].str.contains("엠버") | f_df['객실타입'].isin(selected_core_rooms)]
+
+        # [핵심] 엠버 데이터 정밀 추출
+        amber_in_filter = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
+
         # 3. 상세 솔팅 (객실 및 채널)
         st.sidebar.markdown("---")
         st.sidebar.header("🎯 정밀 솔팅 (객실/채널)")
