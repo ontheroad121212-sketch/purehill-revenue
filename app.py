@@ -119,7 +119,7 @@ try:
         all_channels = sorted(df['판매처'].unique())
         selected_channels = st.sidebar.multiselect("📱 판매처(채널) 필터", options=all_channels, default=all_channels)
 
-        # 🚀 엠버 10대 객실 개별 필터
+        # 🚀 엠버 10대 객실 개별 필터 로직
         st.sidebar.markdown("---")
         st.sidebar.subheader("💎 엠버 객실 정밀 선택")
         ember_room_groups = {
@@ -134,54 +134,28 @@ try:
             "HDF (힐 루나 패밀리)": ["힐 루나 패밀리", "Hill Luna Family"],
             "PPV (풀빌라)": ["프라이빗 풀 빌라", "프라이빗 풀빌라", "Forest Private Pool Villa"]
         }
-        selected_codes = st.sidebar.multiselect("분석 객실 선택", options=list(ember_room_groups.keys()), default=list(ember_room_groups.keys()))
+        selected_codes = st.sidebar.multiselect("🎯 분석 객실 선택", options=list(ember_room_groups.keys()), default=list(ember_room_groups.keys()))
         
         active_keywords = []
         for code in selected_codes:
             active_keywords.extend(ember_room_groups[code])
 
-        # 1차 필터링 적용
+        # [1차 필터링 실행]
         f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels)) & (df['판매처'].isin(selected_channels))]
         
-        # 엠버 전용 필터 적용
+        # [엠버 전용 필터 적용]
         if active_keywords:
             ember_mask = f_df['호텔명'].str.contains("엠버", na=False)
+            # 엠버 호텔은 키워드 포함된 것만 유지, 타 호텔은 그대로 유지
             f_df = f_df[ (~ember_mask) | (f_df['객실타입'].str.contains('|'.join(active_keywords), na=False)) ]
 
-        # 1차 필터링
-        f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels)) & (df['판매처'].isin(selected_channels))]
-        
-        # 엠버 전용 객실 필터 적용
-        if active_keywords:
-            ember_mask = f_df['호텔명'].str.contains("엠버", na=False)
-            f_df = f_df[ (~ember_mask) | (f_df['객실타입'].str.contains('|'.join(active_keywords), na=False)) ]
-
-        # 데이터 분산
+        # [데이터 분리 및 최저가 재산출] - 하단 리포트 로직용 변수 보존
         amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
         comp_df = f_df[~f_df['호텔명'].str.contains("엠버", na=False)]
+        
+        # 엠버 데이터 정밀 추출용 가격 변수 및 호환성 유지
         amber_min_val = amber_df['가격'].min() if not amber_df.empty else 0
         amber_in_filter = amber_df
-        
-        # [핵심] 20만원대 누락 방지: 엠버 객실명 '포함' 방식 필터링
-        if selected_core_rooms:
-            ember_mask = f_df['호텔명'].str.contains("엠버", na=False)
-            # 엠버가 아닌 호텔은 유지, 엠버는 키워드 포함된 것만 유지
-            f_df = f_df[ (~ember_mask) | 
-                         (f_df['객실타입'].str.contains('|'.join(selected_core_rooms), na=False)) ]
-
-        # 데이터 분리 및 최저가 재산출
-        amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
-        comp_df = f_df[~f_df['호텔명'].str.contains("엠버", na=False)]
-        amber_min_val = amber_df['가격'].min() if not amber_df.empty else 0
-
-        # 엠버와 경쟁사 데이터 분리 (AI 리포트에서 사용됨)
-        amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
-        comp_df = f_df[~f_df['호텔명'].str.contains("엠버", na=False)]
-        
-        # 엠버 데이터 정밀 추출용 가격 변수
-        amber_min_val = amber_df['가격'].min() if not amber_df.empty else 0
-        amber_in_filter = amber_df # 호환성을 위해 유지
-
         # ---------------------------------------------------------
         # 🤖 AI 자동 경영 분석 리포트 모듈 (수정 완료)
         # ---------------------------------------------------------
