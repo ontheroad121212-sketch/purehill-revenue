@@ -124,8 +124,8 @@ try:
         st.sidebar.subheader("💎 엠버 객실 정밀 선택")
         ember_room_groups = {
             "GDB": ["그린밸리 디럭스 더블"], ["Green Valley Deluxe Double"],
-            "GDF": ["그린밸리 디럭스 패밀리"], [Green Valley Deluxe Family"],
-            "FDB": ["포레스트 가든 더블"], [Forest Garden Double"],
+            "GDF": ["그린밸리 디럭스 패밀리"], ["Green Valley Deluxe Family"],
+            "FDB": ["포레스트 가든 더블"], ["Forest Garden Double"],
             "FDE": ["포레스트 가든 더블 EB"], ["Forest Garden Double EB"],
             "FDF": ["포레스트 플로라 더블"], ["포레스트 플로랄 더블"], ["Forest Flora Double"], ["Forest Floral Double"], 
             "FPT": ["포레스트 펫 더블"], ["Forest Pet Double"],
