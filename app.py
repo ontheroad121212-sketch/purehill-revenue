@@ -83,6 +83,7 @@ try:
     if not df.empty:
         # --- [사이드바 필터 구역] ---
         st.sidebar.header("🔍 분석 필터 설정")
+        all_dates = sorted(df['날짜'].unique()) selected_dates = st.sidebar.multiselect("📅 투숙일 선택", options=all_dates, default=[all_dates[-1]])
         
         # 1. 날짜 멀티 선택
         all_dates = sorted(df['날짜'].unique())
@@ -145,9 +146,10 @@ try:
             comp_min = comp_df['가격'].min()
             kpi3.metric("프리미엄 수익폭", f"{amber_avg - comp_min:,.0f}원", "경쟁사 최저가 대비")
         else:
-            st.write("데이터 부족으로 KPI를 산출할 수 없습니다.")
-        st.markdown('</div>', unsafe_allow_html=True)
-
+            # 데이터가 없을 때 남색 바가 텅 비지 않도록 안내 문구 추가
+        st.info("💡 사이드바에서 '엠버퓨어힐'과 '비교 호텔'을 모두 선택하시면 경영 지표가 산출됩니다.")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
         # ---------------------------------------------------------
         # 💡 [핵심 기능 1] AI 오늘의 한 수 (Daily Action Plan)
         # ---------------------------------------------------------
