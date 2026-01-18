@@ -26,7 +26,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("🏨 엠버 7대 플랫폼 통합 AI 지배인 v7.2")
-st.caption("매트릭스 상세 분석 및 총지배인용 KPI 리포트 시스템")
+st.caption("매트릭스 상세 분석 및 KPI 리포트 시스템")
 
 # 직관성을 극대화하는 맞춤형 CSS
 st.markdown("""
@@ -44,9 +44,6 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
-
-st.title("🏨 엠버 7대 플랫폼 통합 AI 지배인 v6.2")
-st.caption("매트릭스 상세 분석 및 AI 전략 제안 시스템")
 
 # 2. 데이터 불러오기 및 정밀 정제 함수
 SHEET_ID = "1gTbVR4lfmCVa2zoXwsOqjm1VaCy9bdGWYJGaifckqrs"
