@@ -1,29 +1,47 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 
-st.title("🏨 앰버 AI 지배인: 실시간 대시보드")
+# 페이지 설정
+st.set_page_config(page_title="앰버 AI 지배인 대시보드", layout="wide")
 
-# 구글 시트 URL (CSV 출력 주소로 변환 필요)
-SHEET_URL = "여기에_구글시트_CSV_공유주소"
+st.title("🏨 앰버 7대 플랫폼 통합 AI 지배인")
+st.markdown("---")
 
-if st.button('📈 최신 데이터 불러오기'):
-    try:
-        # 구글 시트에서 데이터 읽기
-        df = pd.read_csv(SHEET_URL)
-        st.success("데이터베이스 연결 성공!")
+# 구글 시트 불러오기 (시트 ID를 입력하세요)
+SHEET_ID = "지배인님의_구글시트_ID"
+URL = f"https://docs.google.com/spreadsheets/d/1gTbVR4lfmCVa2zoXwsOqjm1VaCy9bdGWYJGaifckqrs/gviz/tq?tqx=out:csv"
+
+try:
+    # 데이터 로드
+    df = pd.read_csv(URL)
+    
+    # 데이터가 있을 때만 실행
+    if not df.empty:
+        # 1. 상단 메트릭 (주요 지표)
+        min_price = df['가격'].min()
+        avg_price = df['가격'].mean()
         
-        # 가장 최근 데이터 한 줄 가져오기
-        latest = df.iloc[-1]
+        col1, col2, col3 = st.columns(3)
+        col1.metric("현재 최저가", f"{min_price:,.0f}원")
+        col2.metric("평균 판매가", f"{avg_price:,.0f}원")
+        col3.metric("최근 업데이트", df['수집시간'].iloc[-1])
         
-        cols = st.columns(4)
-        cols[0].metric("전체 최저가", latest['최저가'])
-        cols[1].metric("아고다", latest['아고다'])
-        cols[2].metric("트립닷컴", latest['트립닷컴'])
-        cols[3].metric("트립비토즈", latest['트립비토즈'])
+        st.markdown("---")
         
-        st.write("### 가격 변동 히스토리")
-        st.line_chart(df.set_index('수집시간')['최저가']) # 간단한 그래프
-        st.dataframe(df)
+        # 2. 가격 분포 그래프
+        st.subheader("📈 객실별 가격 분포")
+        fig = px.bar(df, x='객실타입', y='가격', color='판매처', barmode='group',
+                     title="플랫폼별/객실별 실시간 요금 비교")
+        st.plotly_chart(fig, use_container_width=True)
         
-    except Exception as e:
-        st.error(f"데이터를 불러올 수 없습니다: {e}")
+        # 3. 상세 데이터 테이블
+        st.subheader("📋 상세 요금 리스트")
+        # 가격 순으로 정렬해서 보여주기
+        st.dataframe(df.sort_values(by="가격"), use_container_width=True)
+        
+    else:
+        st.info("데이터베이스가 비어 있습니다. Collector.py를 실행하여 데이터를 수집해 주세요.")
+
+except Exception as e:
+    st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
