@@ -7,7 +7,7 @@ st.set_page_config(page_title="앰버 AI 지배인", layout="wide")
 st.title("🏨 앰버 AI 지배인: API 기반 가격 수집")
 
 # 1. 설정 (여기에 본인의 API Key를 넣으세요)
-SERP_API_KEY = "여기에_복사한_API_KEY를_넣으세요"
+SERP_API_KEY = "214ca90ef2550844357702354f7ee208b09d6caa86edfd40e4c1f08e74f511b5"
 
 target_date = st.sidebar.date_input("조회 날짜 선택", datetime(2026, 1, 25))
 checkin = target_date.strftime("%Y-%m-%d")
