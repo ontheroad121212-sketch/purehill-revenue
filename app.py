@@ -4,10 +4,7 @@ from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
+import shutil
 
 # 1. 셀레니움 브라우저 설정 (스트림릿 클라우드용)
 def get_driver():
@@ -16,13 +13,26 @@ def get_driver():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
-    # 아래 한 줄을 추가하여 리눅스 서버 내 크롬 위치를 강제로 지정합니다.
-    options.binary_location = "/usr/bin/chromium-browser"
-
-    # 드라이버 위치도 직접 지정합니다.
-    service = Service("/usr/bin/chromedriver")
     
-    return webdriver.Chrome(service=service, options=options)
+    # 서버에 설치된 크롬 실행 파일의 위치를 자동으로 찾아냅니다.
+    chrome_path = shutil.which("chromium") or shutil.which("chromium-browser")
+    if chrome_path:
+        options.binary_location = chrome_path
+    
+    # 드라이버는 별도 설치 없이 시스템 것을 사용하도록 설정
+    return webdriver.Chrome(options=options)
+
+st.title("🏨 앰버 AI 지배인: 가격 수집기")
+
+if st.button('🚀 데이터 수집 시작'):
+    try:
+        with st.spinner('서버 환경 확인 및 수집 중...'):
+            driver = get_driver()
+            driver.get("https://www.google.com") # 테스트용으로 먼저 구글 접속
+            st.success(f"연결 성공! 브라우저 제목: {driver.title}")
+            driver.quit()
+    except Exception as e:
+        st.error(f"작동 오류: {e}")
 
 # 사이드바 설정
 target_date = st.sidebar.date_input("체크인 날짜", datetime.now() + timedelta(days=1))
