@@ -47,6 +47,12 @@ st.markdown("""
         border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,123,255,0.1);
         color: #1a1c1e;
     }
+    /* 매트릭스 내부 텍스트 크기 조절을 위한 스타일 */
+    .small-font {
+        font-size: 0.8em;
+        color: #666;
+        line-height: 1.2;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -250,21 +256,25 @@ try:
         
         def get_min_detail(x):
             if x.empty: return "-"
-            min_row = x.loc[x['가격'].idxmin()]
-            return f"{min_row['가격']:,.0f}원\n({min_row['판매처']} / {min_row['객실타입']})"
+            # [최저가 로직 정밀 수정] 가격순 정렬 후 첫 번째 행 확보 (정확도 확보)
+            min_row = x.sort_values('가격').iloc[0]
+            # [텍스트 축소 및 줄바꿈 적용]
+            return f"{min_row['가격']:,.0f}원<br><span class='small-font'>({min_row['판매처']} / {min_row['객실타입']})</span>"
 
         detail_pivot = f_df.groupby(['호텔명', '날짜']).apply(get_min_detail).unstack()
 
         def color_signal(val):
             if val == "-" or amber_min_val == 0: return ''
             try:
+                # 텍스트에서 숫자만 추출하여 비교
                 price_val = int(val.split('원')[0].replace(',', ''))
                 if price_val < amber_min_val - 30000: return 'background-color: #ffcccc; color: #d32f2f; font-weight: bold;'
                 if price_val < amber_min_val: return 'background-color: #fff3cd;'
                 return 'background-color: #d4edda;'
             except: return ''
 
-        st.dataframe(detail_pivot.style.applymap(color_signal), use_container_width=True)
+        # unsafe_allow_html=True를 사용하여 줄바꿈 및 스타일 적용
+        st.write(detail_pivot.style.applymap(color_signal).to_html(escape=False), unsafe_allow_html=True)
         st.caption("※ 표기 형식: 최저가 (판매처 / 객실타입)")
 
         st.markdown("---")
