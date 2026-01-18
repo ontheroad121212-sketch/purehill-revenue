@@ -286,12 +286,17 @@ try:
             st.plotly_chart(px.imshow(amber_pivot, text_auto=',.0f', color_continuous_scale='RdYlGn_r', aspect="auto"), use_container_width=True)
 
         # 3. 날짜별 전수 추적 그래프
-        st.subheader("📊 날짜별 전수 추적 그래프")
+        st.subheader("📊 수집일 기준 가격 변동 추이 (일자별)")
         for date in selected_dates:
-            d_df = f_df[f_df['날짜'] == date].sort_values('수집시간')
+            d_df = f_df[f_df['날짜'] == date].copy()
             if not d_df.empty:
-                st.plotly_chart(px.line(d_df, x='수집시간', y='가격', color='호텔명', markers=True, title=f"📅 {date} 투숙일 실시간 가격 추이"), use_container_width=True)
-
+                # 같은 날 수집된 데이터는 최저가로 그룹화하여 일자별 추이 생성
+                daily_trend = d_df.groupby(['수집일', '호텔명'])['가격'].min().reset_index()
+                fig = px.line(daily_trend, x='수집일', y='가격', color='호텔명', markers=True, 
+                             title=f"📅 {date} 투숙일의 수집일별 가격 흐름")
+                fig.update_layout(xaxis_title="데이터 수집일", yaxis_title="최저가 (원)")
+                st.plotly_chart(fig, use_container_width=True)
+                
         # 4. 시뮬레이터
         st.markdown("---")
         st.subheader("🎯 엠버 가격 조정 시뮬레이터")
