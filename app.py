@@ -119,11 +119,34 @@ try:
         all_channels = sorted(df['판매처'].unique())
         selected_channels = st.sidebar.multiselect("📱 판매처(채널) 필터", options=all_channels, default=all_channels)
 
-        ember_core_rooms = ["그린밸리", "힐 엠버", "힐 파인"] # 필터링 확률을 높이기 위해 단어를 짧게 수정
-        selected_core_rooms = st.sidebar.multiselect("🎯 엠버 분석 객실 키워드", options=ember_core_rooms, default=ember_core_rooms)
+        # 🚀 [추가 로직] 엠버 10대 객실 타입 필터
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("💎 엠버 객실 정밀 선택")
+        ember_room_groups = {
+            "그린밸리 (디럭스 더블/패밀리)": ["그린밸리"],
+            "포레스트 (가든/플로라/펫/EB)": ["포레스트"],
+            "힐 (파인/엠버/루나)": ["힐 파인", "힐 엠버", "힐 루나"],
+            "프라이빗 풀빌라": ["풀빌라"]
+        }
+        selected_groups = st.sidebar.multiselect("분석 객실군", options=list(ember_room_groups.keys()), default=list(ember_room_groups.keys()))
+        
+        active_keywords = []
+        for g in selected_groups:
+            active_keywords.extend(ember_room_groups[g])
 
         # 1차 필터링
         f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels)) & (df['판매처'].isin(selected_channels))]
+        
+        # 엠버 전용 객실 필터 적용
+        if active_keywords:
+            ember_mask = f_df['호텔명'].str.contains("엠버", na=False)
+            f_df = f_df[ (~ember_mask) | (f_df['객실타입'].str.contains('|'.join(active_keywords), na=False)) ]
+
+        # 데이터 분산
+        amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
+        comp_df = f_df[~f_df['호텔명'].str.contains("엠버", na=False)]
+        amber_min_val = amber_df['가격'].min() if not amber_df.empty else 0
+        amber_in_filter = amber_df
         
         # [핵심] 20만원대 누락 방지: 엠버 객실명 '포함' 방식 필터링
         if selected_core_rooms:
