@@ -50,8 +50,8 @@ st.markdown("""
     /* 매트릭스 내부 텍스트 크기 조절을 위한 스타일 */
     .small-font {
         font-size: 0.6em;
-        color: #888;
-        line-height: 1.0;
+        color: #666;
+        line-height: 0.8;
     }
     </style>
     """, unsafe_allow_html=True)
