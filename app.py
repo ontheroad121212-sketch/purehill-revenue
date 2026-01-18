@@ -42,6 +42,11 @@ st.markdown("""
         background-color: #fff5f5; border-left: 5px solid #ff4b4b; padding: 15px; 
         border-radius: 8px; margin-bottom: 10px; color: #d32f2f; font-weight: bold;
     }
+    .ai-report-card {
+        background-color: #ffffff; border: 2px solid #007bff; padding: 20px;
+        border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,123,255,0.1);
+        color: #1a1c1e;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -62,14 +67,15 @@ def load_data():
         
         # 날짜 데이터 처리 (그래프 핵심 컬럼)
         data['수집시간_dt'] = pd.to_datetime(data['수집시간'], errors='coerce')
-        # '수집일' 컬럼 강제 생성 (YYYY-MM-DD 형식)
-        data['수집일'] = data['수집시간_dt'].dt.date 
+        # [수정 포인트] 수집일을 문자열로 변환하여 에러 방지
+        data['수집일'] = data['수집시간_dt'].dt.strftime('%Y-%m-%d')
         data['투숙일_dt'] = pd.to_datetime(data['날짜'], errors='coerce')
         
         data = data.dropna(subset=['호텔명', '가격', '날짜', '수집일'])
         
         # 리드타임 계산 (투숙일 - 수집일)
-        data['리드타임'] = (data['투숙일'] - data['수집시간']).dt.days
+        # datetime 객체끼리 계산하기 위해 수집시간_dt 사용
+        data['리드타임'] = (pd.to_datetime(data['날짜']) - data['수집시간_dt']).dt.days
         
         # 필수 데이터 누락 제거 및 150만원 상한 필터
         data = data.dropna(subset=['호텔명', '가격', '날짜'])
@@ -109,25 +115,21 @@ try:
         existing_rooms = [r for r in ember_core_rooms if r in df['객실타입'].unique()]
         selected_core_rooms = st.sidebar.multiselect("🛏️ 엠버 분석 객실 선택", options=existing_rooms, default=existing_rooms)
 
-        # 4. 필터링 적용
-        f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels))]
+        # 4. 필터링 적용 (중복 필터링 방지를 위해 순서 조정)
+        f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels)) & (df['판매처'].isin(selected_channels))]
+        
         if selected_core_rooms:
             # 엠버는 선택된 객실만, 타 호텔은 전체 유지
             f_df = f_df[ (~f_df['호텔명'].str.contains("엠버")) | (f_df['객실타입'].isin(selected_core_rooms)) ]
 
-        # 엠버 데이터 정밀 추출
-        amber_in_filter = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
-        amber_min_val = amber_in_filter['가격'].min() if not amber_in_filter.empty else 0
-
-        # ---------------------------------------------------------
-        # 필터링 로직 (오류 해결을 위해 상단으로 이동)
-        # ---------------------------------------------------------
-        f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels)) & (df['판매처'].isin(selected_channels))]
-    
         # 엠버와 경쟁사 데이터 분리 (AI 리포트에서 사용됨)
         amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
         comp_df = f_df[~f_df['호텔명'].str.contains("엠버", na=False)]
- 
+        
+        # 엠버 데이터 정밀 추출용 가격 변수
+        amber_min_val = amber_df['가격'].min() if not amber_df.empty else 0
+        amber_in_filter = amber_df # 호환성을 위해 유지
+
         # ---------------------------------------------------------
         # 🤖 AI 자동 경영 분석 리포트 모듈 (수정 완료)
         # ---------------------------------------------------------
@@ -155,10 +157,6 @@ try:
         # ---------------------------------------------------------
         # 👑 [수정 완료] 총지배인용 KPI 경영 요약 섹션
         # ---------------------------------------------------------
-        # 에러 수정 포인트: .contains() -> .str.contains()
-        amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
-        comp_df = f_df[~f_df['호텔명'].str.contains("엠버", na=False)]
-        
         st.markdown('<div class="gm-card">', unsafe_allow_html=True)
         st.subheader("🏁 Executive Summary (경영 지표 요약)")
         
@@ -180,7 +178,6 @@ try:
             comp_min = comp_df['가격'].min()
             kpi3.metric("프리미엄 수익폭", f"{amber_avg - comp_min:,.0f}원", "경쟁사 최저가 대비")
         else:
-            # 데이터가 없을 때 남색 바가 텅 비지 않도록 안내 문구 추가
             st.info("💡 사이드바에서 '엠버퓨어힐'과 '비교 호텔'을 모두 선택하시면 경영 지표가 산출됩니다.")
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -216,7 +213,7 @@ try:
             with col_b:
                 st.write("📈 **매출 극대화 제안**")
                 if amber_min_val > 0:
-                    comp_min = f_df[~f_df['호텔명'].str.contains("엠버")]['가격'].min() if not f_df[~f_df['호텔명'].str.contains("엠버")].empty else 0
+                    comp_min = comp_df['가격'].min() if not comp_df.empty else 0
                     if amber_min_val > comp_min + 50000: st.write("- 📉 시장 대비 엠버가 고가입니다. 소폭 인하로 예약 선점이 필요합니다.")
                     elif amber_min_val < comp_min - 30000: st.write("- 💰 엠버가 압도적 저가입니다! 만 원 정도 인상하여 수익률을 높이십시오.")
                     else: st.write("- ✨ 현재 적정 시장가를 유지 중입니다. 현 상태를 유지하십시오.")
@@ -240,6 +237,7 @@ try:
 
         # 📉 [핵심 기능 2] 경쟁사 땡처리 추적 (Booking Pace)
         st.subheader("📉 투숙 임박 땡처리 추적 (Lead-time Analysis)")
+        
         pace_trend = f_df.groupby(['리드타임', '호텔명'])['가격'].min().reset_index()
         fig_pace = px.line(pace_trend, x='리드타임', y='가격', color='호텔명', markers=True, title="리드타임별 최저가 추이 (오른쪽이 투숙일 임박)")
         fig_pace.update_xaxes(autorange="reversed")
@@ -247,9 +245,7 @@ try:
 
         st.markdown("---")
 
-        # ---------------------------------------------------------
-        # 🚦 [지배인님 요청] 일자별 호텔 상세 최저가 매트릭스
-        # ---------------------------------------------------------
+        # 🚦 일자별 호텔 상세 최저가 매트릭스
         st.subheader("🚦 일자별 호텔 상세 최저가 매트릭스 (판매처/객실 포함)")
         
         def get_min_detail(x):
@@ -283,8 +279,8 @@ try:
 
         # 2. 엠버 핵심 객실 히트맵
         st.subheader("💎 엠버 핵심 객실별/채널별 최저가 분포 (Heatmap)")
-        if not amber_in_filter.empty:
-            amber_pivot = amber_in_filter.pivot_table(index='객실타입', columns='판매처', values='가격', aggfunc='min')
+        if not amber_df.empty:
+            amber_pivot = amber_df.pivot_table(index='객실타입', columns='판매처', values='가격', aggfunc='min')
             st.plotly_chart(px.imshow(amber_pivot, text_auto=',.0f', color_continuous_scale='RdYlGn_r', aspect="auto"), use_container_width=True)
 
         # 3. 날짜별 전수 추적 그래프
@@ -308,15 +304,15 @@ try:
                 delta = st.slider("가격을 조정해보세요 (원)", -150000, 150000, 0, 5000)
                 sim_p = amber_min_val + delta
                 st.write(f"📈 **조정 후 예상가: {sim_p:,.0f}원**")
-            comp_p = f_df[~f_df['호텔명'].str.contains("엠버")]['가격'].values
-            if len(comp_p) > 0:
-                comb = np.append(comp_p, sim_p); comb.sort()
+            comp_prices = comp_df['가격'].values
+            if len(comp_prices) > 0:
+                comb = np.append(comp_prices, sim_p); comb.sort()
                 rank = np.where(comb == sim_p)[0][0] + 1
                 st.write(f"🏆 예상 시장 순위: **{len(comb)}개 중 {rank}위**")
                 st.progress((len(comb) - rank + 1) / len(comb))
 
         with st.expander("📋 상세 로그 보기"):
-            st.dataframe(f_df.sort_values(['날짜', '수집시간'], ascending=[True, False]), use_container_width=True, hide_index=True)
+            st.dataframe(f_df.sort_values(['날짜', '수집시간_dt'], ascending=[True, False]), use_container_width=True, hide_index=True)
 
 except Exception as e:
     st.error(f"대시보드 에러 발생: {e}")
