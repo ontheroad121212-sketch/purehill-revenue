@@ -16,12 +16,13 @@ def get_driver():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
+    # 아래 한 줄을 추가하여 리눅스 서버 내 크롬 위치를 강제로 지정합니다.
+    options.binary_location = "/usr/bin/chromium-browser"
+
+    # 드라이버 위치도 직접 지정합니다.
+    service = Service("/usr/bin/chromedriver")
     
-    # 서버에 설치된 크롬을 자동으로 찾아 실행합니다.
-    service = Service(ChromeDriverManager().install())
     return webdriver.Chrome(service=service, options=options)
-st.set_page_config(page_title="앰버 AI 지배인", layout="wide")
-st.title("🏨 앰버 AI 지배인: 실시간 가격 수집")
 
 # 사이드바 설정
 target_date = st.sidebar.date_input("체크인 날짜", datetime.now() + timedelta(days=1))
