@@ -123,16 +123,16 @@ try:
         st.sidebar.markdown("---")
         st.sidebar.subheader("💎 엠버 객실 정밀 선택")
         ember_room_groups = {
-            "그린밸리 디럭스 더블": ["GDB"],
-            "그린밸리 디럭스 패밀리": ["GDF"],
-            "포레스트 가든 더블": ["FDB"],
-            "포레스트 가든 더블 EB 엑스트라베드": ["FDE"],
-            "포레스트 플로라 플로랄 더블": ["FDF"],
-            "포레스트 펫 더블": ["FPT"],
-            "힐 파인 더블": ["HDP"],
-            "힐 엠버 트윈": ["HDT"],
-            "힐 루나 패밀리": ["HDF"],
-            "포레스트 프라이빗 풀빌라 프라이빗 풀빌라": ["PPV"]
+            "GDB": ["그린밸리 디럭스 더블"], ["Green Valley Deluxe Double"],
+            "GDF": ["그린밸리 디럭스 패밀리"], [Green Valley Deluxe Family"],
+            "FDB": ["포레스트 가든 더블"], [Forest Garden Double"],
+            "FDE": ["포레스트 가든 더블 EB"], ["Forest Garden Double EB"],
+            "FDF": ["포레스트 플로라 더블"], ["포레스트 플로랄 더블"], ["Forest Flora Double"], ["Forest Floral Double"], 
+            "FPT": ["포레스트 펫 더블"], ["Forest Pet Double"],
+            "HDP": ["힐 파인 더블"], ["Hill Pine Double"],
+            "HDT": ["힐 엠버 트윈"], ["Hill Amber Twin"],
+            "HDF": ["힐 루나 패밀리"], ["Hill Luna Family"],
+            "PPV": ["프라이빗 풀 빌라"], ["Forest Private Pool Villa"] 
         }
         selected_groups = st.sidebar.multiselect("분석 객실군", options=list(ember_room_groups.keys()), default=list(ember_room_groups.keys()))
         
