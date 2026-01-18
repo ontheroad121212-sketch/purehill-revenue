@@ -6,7 +6,7 @@ import numpy as np
 from datetime import datetime
 
 # 1. 페이지 설정 및 디자인
-st.set_page_config(page_title="엠버 AI 지배인 v6.0", layout="wide")
+st.set_page_config(page_title="엠버 AI 지배인 v6.1", layout="wide")
 
 # 직관성을 극대화하는 맞춤형 CSS
 st.markdown("""
@@ -25,8 +25,8 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏨 엠버 7대 플랫폼 통합 AI 지배인 v6.0")
-st.caption("AI 전략 제안 & 땡처리 추적 통합 시스템")
+st.title("🏨 엠버 7대 플랫폼 통합 AI 지배인 v6.1")
+st.caption("최저가 정밀 매칭 및 AI 전략 제안 시스템")
 
 # 2. 데이터 불러오기 및 정밀 정제 함수
 SHEET_ID = "1gTbVR4lfmCVa2zoXwsOqjm1VaCy9bdGWYJGaifckqrs"
@@ -82,14 +82,20 @@ try:
         existing_rooms = [r for r in ember_core_rooms if r in df['객실타입'].unique()]
         selected_core_rooms = st.sidebar.multiselect("🛏️ 엠버 분석 객실 선택", options=existing_rooms, default=existing_rooms)
 
-        # 4. 필터링 적용
+        # 4. 필터링 적용 (정밀 최저가 산출용 원본 보존 필터링)
         f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels))]
+        
+        # 엠버 데이터만 따로 정밀 추출 (사이드바 객실 필터 적용 전 최저가 확보)
+        amber_all_rooms = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
+        
+        # 핵심 객실 필터 적용
         if selected_core_rooms:
-            # 엠버는 선택된 객실만, 타 호텔은 전체 유지
             f_df = f_df[ (~f_df['호텔명'].str.contains("엠버")) | (f_df['객실타입'].isin(selected_core_rooms)) ]
 
-        # 엠버 데이터 정밀 추출
+        # 필터링 후 엠버 데이터 (메트릭 및 신호등용)
         amber_in_filter = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
+        
+        # [최저가 정밀 산출] 데이터가 있을 때만 계산
         amber_min_val = amber_in_filter['가격'].min() if not amber_in_filter.empty else 0
 
         # ---------------------------------------------------------
@@ -126,10 +132,14 @@ try:
             with col_b:
                 st.write("📈 **매출 극대화 제안**")
                 if amber_min_val > 0:
-                    comp_min = f_df[~f_df['호텔명'].str.contains("엠버")]['가격'].min() if not f_df[~f_df['호텔명'].str.contains("엠버")].empty else 0
-                    if amber_min_val > comp_min + 50000: st.write("- 📉 시장 대비 엠버가 고가입니다. 소폭 인하로 예약 선점이 필요합니다.")
-                    elif amber_min_val < comp_min - 30000: st.write("- 💰 엠버가 압도적 저가입니다! 만 원 정도 인상하여 수익률을 높이십시오.")
-                    else: st.write("- ✨ 현재 적정 시장가를 유지 중입니다. 현 상태를 유지하십시오.")
+                    comp_df = f_df[~f_df['호텔명'].str.contains("엠버")]
+                    comp_min = comp_df['가격'].min() if not comp_df.empty else 0
+                    if comp_min > 0:
+                        if amber_min_val > comp_min + 50000: st.write("- 📉 시장 대비 엠버가 고가입니다. 소폭 인하로 예약 선점이 필요합니다.")
+                        elif amber_min_val < comp_min - 30000: st.write("- 💰 엠버가 압도적 저가입니다! 만 원 정도 인상하여 수익률을 높이십시오.")
+                        else: st.write("- ✨ 현재 적정 시장가를 유지 중입니다. 현 상태를 유지하십시오.")
+                else:
+                    st.write("- 🔍 분석할 엠버 데이터가 부족합니다.")
             st.markdown('</div>', unsafe_allow_html=True)
 
         # ---------------------------------------------------------
