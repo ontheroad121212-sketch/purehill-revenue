@@ -31,27 +31,42 @@ st.caption("매트릭스 상세 분석 및 KPI 리포트 시스템")
 # 직관성을 극대화하는 맞춤형 CSS
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid #e9ecef; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-    div[data-testid="stMetricValue"] { font-size: 28px; font-weight: 700; color: #1a1c1e; }
-    .action-card { 
-        background-color: #f0f7ff; border-left: 5px solid #007bff; padding: 20px; 
-        border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    .main { background-color: #f4f7f6; }
+    .gm-card { 
+        background-color: #1b263b; color: white; padding: 25px; 
+        border-radius: 15px; margin-bottom: 25px; border-left: 10px solid #e0e1dd;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
-    .parity-alert { 
-        background-color: #fff5f5; border-left: 5px solid #ff4b4b; padding: 15px; 
-        border-radius: 8px; margin-bottom: 10px; color: #d32f2f; font-weight: bold;
+    .gm-card h3 { font-size: 1.2rem; color: #e0e1dd !important; } /* 타이틀 크기도 소폭 축소 */
+    .stMetric { background-color: #ffffff; padding: 10px; border-radius: 12px; border: 1px solid #e9ecef; }
+    div[data-testid="stMetricValue"] { font-size: 22px; font-weight: 700; } /* 메트릭 숫자 축소 */
+    
+    /* 매트릭스(표) 전체 폰트 강제 축소 */
+    .dataframe {
+        font-size: 11px !important; /* 전체 텍스트 약 2포인트 축소 */
     }
-    .ai-report-card {
-        background-color: #ffffff; border: 2px solid #007bff; padding: 20px;
-        border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,123,255,0.1);
+    
+    /* 인덱스(행/열 제목) 볼드체 크기 축소 */
+    th.index_name, th.col_heading, th.row_heading {
+        font-size: 11px !important;
+        font-weight: 600 !important; /* 너무 굵지 않게 조정 */
+        padding: 4px 8px !important;
+    }
+
+    /* 본문 가격 텍스트 스타일 */
+    .price-font {
+        font-size: 12px; /* 기존보다 2포인트 축소 */
+        font-weight: 700;
         color: #1a1c1e;
     }
-    /* 매트릭스 내부 텍스트 크기 조절을 위한 스타일 */
+
+    /* 이미 줄여놓은 초소형 판매처/객실명 (기존 유지) */
     .small-font {
-        font-size: 0.6em;
-        color: #666;
-        line-height: 0.8;
+        font-size: 6.5px !important; /* 0.65em 상당 */
+        color: #666 !important;
+        line-height: 0.8 !important;
+        display: block;
+        margin-top: 1px;
     }
     </style>
     """, unsafe_allow_html=True)
