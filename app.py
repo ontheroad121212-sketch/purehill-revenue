@@ -264,55 +264,70 @@ try:
 
         st.markdown("---")
 
-# 🚦 일자별 호텔 상세 최저가 매트릭스 (간격 및 폰트 초소형화)
+# 🚦 일자별 호텔 상세 최저가 매트릭스 (인덱스 복구 및 열 너비 고정형)
         st.subheader("🚦 일자별 호텔 상세 최저가 매트릭스 (판매처/객실 포함)")
         
         def get_min_detail(x):
             if x.empty: return "-"
-            # 가격순 정렬 후 최상단 데이터 확보
             min_row = x.sort_values('가격').iloc[0]
-            # 가격(price-font)과 상세정보(small-font)를 결합
-            return f"<div class='price-font'>{min_row['가격']:,.0f}원</div><div class='small-font'>({min_row['판매처']} / {min_row['객실타입']})</div>"
+            # div 구조를 유지하되 간격을 더 정밀하게 밀착
+            return f"<div class='price-font'>{min_row['가격']:,.0f}원</div><div class='small-font'>({min_row['판매처']}/{min_row['객실타입']})</div>"
 
-        # 데이터 피벗 및 그룹화
+        # 데이터 피벗
         detail_pivot = f_df.groupby(['호텔명', '날짜']).apply(get_min_detail).unstack()
 
         def color_signal(val):
             if val == "-" or amber_min_val == 0: return ''
             try:
-                # div 태그 내의 숫자만 추출하여 비교
                 price_val = int(val.split('원')[0].split('>')[-1].replace(',', ''))
                 if price_val < amber_min_val - 30000: return 'background-color: #ffcccc; color: #d32f2f;'
                 if price_val < amber_min_val: return 'background-color: #fff3cd;'
                 return 'background-color: #d4edda;'
             except: return ''
 
-        # [핵심 수정] 표의 내부 간격과 폰트를 강제로 깎아내는 스타일 주입
-        st.markdown("""
+        # [지배인님 커스텀 포인트] CSS 주입
+        st.markdown(f"""
             <style>
-            /* 1. 테이블 전체 폰트 및 인덱스 사이즈 축소 */
-            table { font-size: 11px !important; width: 100%; border-collapse: collapse; }
+            /* 1. 테이블 레이아웃 고정 및 열 너비 조정 */
+            table {{ 
+                font-size: 11px !important; 
+                table-layout: fixed !important; /* 열 너비를 고정함 */
+                width: 100% !important; 
+                border-collapse: collapse; 
+            }}
             
-            /* 2. 행/열 제목(인덱스) 볼드체 슬림화 및 간격 압축 */
-            th.row_heading, th.col_heading { 
-                font-size: 10px !important; 
-                font-weight: 500 !important; /* 볼드 강도를 낮춤 */
-                padding: 2px 4px !important; 
-                background-color: #f8f9fa !important;
-            }
+            /* 2. 첫 번째 열(호텔명) 너비 설정 */
+            th.row_heading {{ 
+                width: 120px !important; 
+                font-size: 11px !important;
+                font-weight: 600 !important; /* 인덱스 두께 복구 */
+                text-align: left !important;
+                padding-left: 8px !important;
+            }}
+
+            /* 3. 데이터 열(날짜) 너비 설정 - 지배인님 여기서 숫자를 바꿔보세요 */
+            th.col_heading, td {{ 
+                width: 90px !important;  /* 가로 간격 조정 포인트 (기본 90px) */
+                padding: 3px 2px !important; 
+                line-height: 1.1 !important; 
+                text-align: center !important;
+            }}
             
-            /* 3. 셀 내부 여백 제거 (가장 중요) */
-            td { padding: 1px 3px !important; line-height: 1.0 !important; height: auto !important; }
+            /* 4. 헤더 폰트 및 스타일 */
+            th.col_heading {{ 
+                font-size: 11px !important; 
+                font-weight: 600 !important; /* 인덱스 두께 복구 */
+                background-color: #f1f3f5 !important;
+            }}
             
-            /* 4. 가격 및 상세정보 텍스트 정밀 조정 */
-            .price-font { font-size: 11px; font-weight: 700; margin-bottom: -1px; }
-            .small-font { font-size: 8.5px !important; color: #777; line-height: 0.9 !important; }
+            .price-font {{ font-size: 11px; font-weight: 700; margin-bottom: -1px; }}
+            .small-font {{ font-size: 8.5px !important; color: #777; line-height: 1.0 !important; }}
             </style>
         """, unsafe_allow_html=True)
 
-        # HTML로 렌더링하여 간격 압축 적용
+        # HTML 렌더링
         st.write(detail_pivot.style.applymap(color_signal).to_html(escape=False), unsafe_allow_html=True)
-        st.caption("※ 매트릭스 전체 폰트 2pt 축소 및 인덱스 슬림화가 적용되었습니다.")
+        st.caption("※ 인덱스 가독성을 위해 두께를 복구했으며, 열 너비를 고정하여 간격을 최적화했습니다.")
 
         st.markdown("---")
 
