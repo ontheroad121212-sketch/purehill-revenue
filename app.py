@@ -15,20 +15,14 @@ st.markdown("""
     div[data-testid="stMetricValue"] { font-size: 28px; font-weight: 700; color: #1a1c1e; }
     .stDataFrame { border: 1px solid #e9ecef; border-radius: 12px; }
     .parity-alert { 
-        background-color: #fff5f5; 
-        border-left: 5px solid #ff4b4b; 
-        padding: 15px; 
-        border-radius: 8px; 
-        margin-bottom: 10px; 
-        color: #d32f2f; 
-        font-weight: bold;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        background-color: #fff5f5; border-left: 5px solid #ff4b4b; padding: 15px; 
+        border-radius: 8px; margin-bottom: 10px; color: #d32f2f; font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏨 앰버 7대 플랫폼 통합 AI 지배인 v5.1")
-st.caption("날짜별 개별 트렌드 분석 및 전수 데이터 모니터링 시스템")
+st.title("🏨 앰버 7대 플랫폼 통합 AI 지배인 v5.2")
+st.caption("전수 데이터 모니터링 및 실시간 가격 역전 탐지 시스템 (v5.2)")
 
 # 2. 데이터 불러오기 및 정밀 정제 함수
 SHEET_ID = "1gTbVR4lfmCVa2zoXwsOqjm1VaCy9bdGWYJGaifckqrs"
@@ -40,7 +34,6 @@ def load_data():
         data = pd.read_csv(URL, encoding='utf-8-sig')
         
         # [데이터 정밀 정제]
-        # 호텔명, 날짜, 객실타입의 공백 제거 및 문자열 정리
         data['호텔명'] = data['호텔명'].astype(str).str.replace(" ", "").str.strip()
         data['날짜'] = data['날짜'].astype(str).str.replace(" ", "").str.strip()
         data['객실타입'] = data['객실타입'].astype(str).str.strip()
@@ -55,12 +48,11 @@ def load_data():
         # 필수 데이터 누락 행 제거
         data = data.dropna(subset=['호텔명', '가격', '날짜'])
         
-        # [지배인님 요청] 150만원 이상 고가 객실은 분석 노이즈 제거를 위해 제외
+        # [지배인님 요청] 150만원 이상 고가 객실 제외
         data = data[data['가격'] < 1500000]
         
         return data
     except Exception as e:
-        st.error(f"데이터 로드 실패: {e}")
         return pd.DataFrame()
 
 try:
@@ -75,19 +67,19 @@ try:
         selected_dates = st.sidebar.multiselect("📅 분석 대상 투숙일 선택", options=all_dates, default=[all_dates[-1]] if all_dates else [])
         
         # 2. 13개 전체 호텔 리스트 (지배인님 고정 리스트)
-        all_hotels = sorted(df['호텔명'].unique())
         target_list = [
             "앰버퓨어힐", "그랜드하얏트", "파르나스", "신라호텔", "롯데호텔", 
             "신라스테이", "해비치", "신화메리어트", "히든클리프", "더시에나", 
             "조선힐스위트", "메종글래드", "그랜드조선제주"
         ]
+        all_hotels = sorted(df['호텔명'].unique())
         selected_hotels = st.sidebar.multiselect("🏨 분석 대상 호텔 선택", options=all_hotels, default=[h for h in target_list if h in all_hotels])
 
         # 3. 상세 솔팅 (객실 및 채널)
         st.sidebar.markdown("---")
         st.sidebar.header("🎯 정밀 솔팅 (객실/채널)")
-        temp_filter = df[df['호텔명'].isin(selected_hotels)]
-        selected_rooms = st.sidebar.multiselect("🛏️ 특정 객실 타입만 보기", options=sorted(temp_filter['객실타입'].unique()))
+        temp_filter_data = df[df['호텔명'].isin(selected_hotels)]
+        selected_rooms = st.sidebar.multiselect("🛏️ 특정 객실 타입만 보기", options=sorted(temp_filter_data['객실타입'].unique()))
         selected_channels = st.sidebar.multiselect("📱 특정 판매처만 보기", options=sorted(df['판매처'].unique()))
 
         # 데이터 필터링 적용
@@ -96,7 +88,7 @@ try:
         if selected_channels: f_df = f_df[f_df['판매처'].isin(selected_channels)]
 
         # ---------------------------------------------------------
-        # 🟢 [기능 1] 실시간 가격 역전 탐지 (Parity Alert)
+        # 🟢 [기능 1] 가격 역전 알림 (Parity Alert) - 에러 방지 포함
         # ---------------------------------------------------------
         st.subheader("⚠️ 실시간 가격 역전 탐지 (Parity Check)")
         amber_in_filter = f_df[f_df['호텔명'].str.contains("앰버", na=False)]
@@ -127,11 +119,13 @@ try:
             st.subheader("🚀 실시간 시장 지위 요약")
             m_col1, m_col2, m_col3, m_col4 = st.columns(4)
             
-            with m_col1:
-                if not amber_in_filter.empty:
-                    amber_min_price = amber_in_filter['가격'].min()
-                    st.metric("앰버 최저가", f"{amber_min_price:,.0f}원")
-                else:
+            amber_min_val = 0
+            if not amber_in_filter.empty:
+                amber_min_val = amber_in_filter['가격'].min()
+                with m_col1:
+                    st.metric("앰버 최저가", f"{amber_min_val:,.0f}원")
+            else:
+                with m_col1:
                     st.metric("앰버 최저가", "데이터 없음")
             
             with m_col2:
@@ -139,15 +133,16 @@ try:
                 st.metric("시장 전체 최저가", f"{market_min_val:,.0f}원")
                 
             with m_col3:
-                market_avg = f_df['가격'].mean()
                 if not amber_in_filter.empty:
-                    diff = ((amber_min_price - market_avg) / market_avg) * 100
+                    market_avg = f_df['가격'].mean()
+                    diff = ((amber_min_val - market_avg) / market_avg) * 100
                     st.metric("시장 평균가 대비", f"{diff:+.1f}%", delta_color="inverse")
                 else:
                     st.metric("시장 평균가 대비", "-")
             
             with m_col4:
-                st.metric("활성 1위 채널", f_df['판매처'].value_counts().idxmax())
+                top_chan = f_df['판매처'].value_counts().idxmax()
+                st.metric("활성 1위 채널", top_chan)
 
             st.markdown("---")
 
@@ -169,7 +164,7 @@ try:
             # ---------------------------------------------------------
             # 3. 앰버 정밀 분석 (히트맵)
             # ---------------------------------------------------------
-            st.subheader("💎 앰버 객실별/채널별 최저가 분포 (Heatmap)")
+            st.subheader("💎 엠버 객실별/채널별 최저가 분포 (Heatmap)")
             if not amber_in_filter.empty:
                 amber_pivot = amber_in_filter.pivot_table(index='객실타입', columns='판매처', values='가격', aggfunc='min')
                 fig_heat = px.imshow(amber_pivot, text_auto=',.0f', color_continuous_scale='RdYlGn_r', aspect="auto")
@@ -182,15 +177,10 @@ try:
             # ---------------------------------------------------------
             st.subheader("📉 날짜별 가격 변동 개별 트렌드 (Pickup Analysis)")
             for date in selected_dates:
-                date_specific_df = f_df[f_df['날짜'] == date]
-                if not date_specific_df.empty:
-                    fig = px.line(date_specific_df.sort_values('수집시간'), 
-                                   x='수집시간', y='가격', color='호텔명', 
-                                   markers=True, title=f"📅 {date} 투숙일 가격 변동 추이",
-                                   hover_data=['판매처', '객실타입'])
+                date_spec_df = f_df[f_df['날짜'] == date].sort_values('수집시간')
+                if not date_spec_df.empty:
+                    fig = px.line(date_spec_df, x='수집시간', y='가격', color='호텔명', markers=True, title=f"📅 {date} 투숙일 가격 추이")
                     st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.write(f"날짜 {date}에 대한 수집 히스토리가 없습니다.")
 
             st.markdown("---")
 
@@ -202,20 +192,20 @@ try:
                 sim_col1, sim_col2 = st.columns([1, 2])
                 with sim_col1:
                     delta = st.slider("가격을 조정해보세요 (원)", -150000, 150000, 0, 5000)
-                    sim_price = amber_min_price + delta
+                    sim_price = amber_min_val + delta
                     st.write(f"📈 **조정 후 예상가: {sim_price:,.0f}원**")
                 with sim_col2:
                     comp_prices = f_df[~f_df['호텔명'].str.contains("앰버")].groupby('호텔명')['가격'].min().values
-                    combined = np.append(comp_prices, sim_price)
-                    combined.sort()
-                    rank = np.where(combined == sim_price)[0][0] + 1
-                    total = len(combined)
-                    score = ((total - rank + 1) / total) * 100
-                    st.write(f"🏆 **예상 시장 순위:** {total}개 중 **{rank}위**")
-                    st.progress(score / 100)
-                    if rank == 1: st.success("🥇 최저가 달성! 점유율 독점 예상")
-                    elif rank <= 3: st.info("🥈 상위권 진입! 안정적 예약 확보")
-                    else: st.warning("🥉 경쟁력 보완 필요")
+                    if len(comp_prices) > 0:
+                        combined = np.append(comp_prices, sim_price)
+                        combined.sort()
+                        rank = np.where(combined == sim_price)[0][0] + 1
+                        total = len(combined)
+                        score = ((total - rank + 1) / total) * 100
+                        st.write(f"🏆 **예상 시장 순위:** {total}개 중 **{rank}위**")
+                        st.progress(score / 100)
+                    else:
+                        st.write("비교할 경쟁사 데이터가 부족합니다.")
 
             st.markdown("---")
             # ---------------------------------------------------------
@@ -234,7 +224,7 @@ try:
         else:
             st.warning("선택된 필터 조건에 데이터가 없습니다.")
     else:
-        st.warning("구글 시트 데이터가 비어있습니다. 수집기를 먼저 실행해 주세요.")
+        st.warning("데이터 로드 중입니다. 시트 확인 및 수집기를 실행해 주세요.")
 
 except Exception as e:
-    st.error(f"대시보드 구동 중 에러 발생: {e}")
+    st.error(f"대시보드 에러: {e}")
