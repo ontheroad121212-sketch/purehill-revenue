@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # 1. 페이지 설정 및 디자인 (전체 레이아웃)
 st.set_page_config(page_title="앰버 AI 지배인 전략 대시보드", layout="wide")
@@ -17,7 +18,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("🏨 앰버 7대 플랫폼 통합 AI 지배인")
-st.caption("실시간 시장 데이터 동기화 및 투숙일별 가격 추적 분석 시스템 (v4.5)")
+st.caption("날짜별 개별 트렌드 분석 및 전수 데이터 모니터링 시스템 (v4.6)")
 
 # 2. 데이터 불러오기 및 정밀 정제 함수
 SHEET_ID = "1gTbVR4lfmCVa2zoXwsOqjm1VaCy9bdGWYJGaifckqrs"
@@ -61,7 +62,7 @@ try:
         
         # 1. 날짜 멀티 선택
         all_dates = sorted(df['날짜'].unique())
-        selected_dates = st.sidebar.multiselect("📅 분석 대상 투숙일 선택", options=all_dates, default=[all_dates[-1]] if all_dates else [])
+        selected_dates = st.sidebar.multiselect("📅 분석 대상 투숙일 선택", options=all_dates, default=all_dates if all_dates else [])
         
         # 2. 13개 전체 호텔 리스트 (지배인님 고정 리스트)
         all_hotels = sorted(df['호텔명'].unique())
@@ -95,11 +96,11 @@ try:
             
             with m_col1:
                 if not amber_data.empty:
-                    # 필터 내 엠버의 진짜 최저가 검색 (수정된 로직)
+                    # 필터 내 엠버의 진짜 최저가 검색
                     amber_min_price = amber_data['가격'].min()
                     amber_min_row = amber_data[amber_data['가격'] == amber_min_price].iloc[0]
                     st.metric("엠버 최저가", f"{amber_min_price:,.0f}원", 
-                              help=f"객실: {amber_min_row['객실타입']} | 채널: {amber_min_row['판매처']}")
+                              help=f"날짜: {amber_min_row['날짜']} | 객실: {amber_min_row['객실타입']} | 채널: {amber_min_row['판매처']}")
                 else:
                     st.metric("엠버 최저가", "데이터 없음")
             
@@ -129,7 +130,8 @@ try:
             
             def color_signal(val):
                 if pd.isna(val) or amber_data.empty: return ''
-                ref_price = amber_min_price 
+                # 전체 필터 내 엠버 최저가 기준으로 비교
+                ref_price = amber_data['가격'].min() 
                 diff = val - ref_price
                 if diff < -30000: return 'background-color: #ffcccc; color: #d32f2f; font-weight: bold' # 위험
                 if diff < 0: return 'background-color: #fff3cd; color: #856404;' # 주의
@@ -141,55 +143,49 @@ try:
             st.markdown("---")
 
             # ---------------------------------------------------------
-            # 3. 엠버 정밀 분석 (히트맵 & 박스플롯)
+            # 3. 엠버 정밀 분석 (히트맵)
             # ---------------------------------------------------------
-            col_a, col_b = st.columns([3, 2])
-            with col_a:
-                st.subheader("💎 엠버 객실별/채널별 분포 (Heatmap)")
-                if not amber_data.empty:
-                    amber_pivot = amber_data.pivot_table(index='객실타입', columns='판매처', values='가격', aggfunc='min')
-                    fig_heat = px.imshow(amber_pivot, text_auto=',.0f', color_continuous_scale='RdYlGn_r', aspect="auto")
-                    st.plotly_chart(fig_heat, use_container_width=True)
-            with col_b:
-                st.subheader("📊 호텔별 요금 분포 범위")
+            st.subheader("💎 엠버 객실별/채널별 최저가 분포 (Heatmap)")
+            if not amber_data.empty:
+                amber_pivot = amber_data.pivot_table(index='객실타입', columns='판매처', values='가격', aggfunc='min')
+                fig_heat = px.imshow(amber_pivot, text_auto=',.0f', color_continuous_scale='RdYlGn_r', aspect="auto")
+                st.plotly_chart(fig_heat, use_container_width=True)
+            else:
+                st.info("선택된 날짜/필터에 엠버 데이터가 없습니다.")
+
+            st.markdown("---")
+
+            # ---------------------------------------------------------
+            # 4. 날짜별 개별 트렌드 (생략 없이 전수 노출)
+            # ---------------------------------------------------------
+            st.subheader("📉 날짜별 가격 변동 개별 트렌드 (Pickup Analysis)")
+            st.info("선택하신 각 투숙 날짜별로 요금이 예약 시점(수집 시간)에 따라 어떻게 변했는지 개별적으로 보여줍니다.")
+            
+            for date in selected_dates:
+                date_specific_df = f_df[f_df['날짜'] == date]
+                if not date_specific_df.empty:
+                    fig = px.line(date_specific_df.sort_values('수집시간'), 
+                                   x='수집시간', y='가격', color='호텔명', 
+                                   markers=True, title=f"📅 {date} 투숙일 가격 변동 추이",
+                                   hover_data=['판매처', '객실타입'])
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.write(f"날짜 {date}에 대한 수집 히스토리가 없습니다.")
+
+            st.markdown("---")
+
+            # ---------------------------------------------------------
+            # 5. 상세 데이터 로그 및 박스플롯
+            # ---------------------------------------------------------
+            col_low_a, col_low_b = st.columns([2, 1])
+            with col_low_a:
+                st.subheader("📋 전체 상세 데이터 로그")
+                st.dataframe(f_df.sort_values(['날짜', '가격'], ascending=[True, True]), use_container_width=True, hide_index=True)
+            with col_low_b:
+                st.subheader("📊 호텔별 가격 분포 범위")
                 fig_box = px.box(f_df, x="호텔명", y="가격", color="호텔명")
                 fig_box.update_layout(showlegend=False)
                 st.plotly_chart(fig_box, use_container_width=True)
-
-            st.markdown("---")
-
-            # ---------------------------------------------------------
-            # 4. [신규] 특정 투숙일 가격 추적 모드 (Pickup Analysis)
-            # ---------------------------------------------------------
-            st.subheader("🎯 특정 투숙일 가격 추적 모드")
-            st.info("선택한 날짜의 요금이 '언제 수집했느냐'에 따라 어떻게 변하는지 추적합니다.")
-            
-            if selected_dates:
-                track_date = st.selectbox("추적할 투숙 날짜를 선택하세요", options=selected_dates, key="track_date")
-                track_df = df[(df['날짜'] == track_date) & (df['호텔명'].isin(selected_hotels))]
-                
-                if not track_df.empty:
-                    fig_track = px.line(track_df.sort_values('수집시간'), x='수집시간', y='가격', 
-                                       color='호텔명', markers=True, 
-                                       title=f"'{track_date}' 투숙 건에 대한 시점별 가격 변동",
-                                       hover_data=['판매처', '객실타입'])
-                    st.plotly_chart(fig_track, use_container_width=True)
-                else:
-                    st.write("해당 날짜에 대한 히스토리 데이터가 아직 부족합니다.")
-
-            st.markdown("---")
-
-            # ---------------------------------------------------------
-            # 5. 상세 데이터 로그 및 트렌드
-            # ---------------------------------------------------------
-            st.subheader("📉 전체 수집 트렌드")
-            fig_line = px.line(f_df.sort_values('수집시간'), x='수집시간', y='가격', 
-                               color='호텔명', line_dash='날짜', markers=True)
-            st.plotly_chart(fig_line, use_container_width=True)
-
-            with st.expander("📋 상세 데이터 로그 확인"):
-                st.dataframe(f_df.sort_values(['날짜', '수집시간'], ascending=[True, False]), 
-                             use_container_width=True, hide_index=True)
 
         else:
             st.warning("선택된 필터 조건에 데이터가 없습니다.")
