@@ -56,8 +56,8 @@ try:
         
         m_col1, m_col2, m_col3 = st.columns(3)
         with m_col1:
-            pure_min = current_df[current_df['호텔명'] == '엠버퓨어힐']['가격'].min()
-            st.metric("엠버퓨어힐 최저가", f"{pure_min:,.0f}원" if not pd.isna(pure_min) else "데이터 없음")
+            pure_min = current_df[current_df['호텔명'] == '엠버 퓨어힐']['가격'].min()
+            st.metric("엠버 퓨어힐 최저가", f"{pure_min:,.0f}원" if not pd.isna(pure_min) else "데이터 없음")
         with m_col2:
             st.metric("선택 그룹 최저가", f"{current_df['가격'].min():,.0f}원")
         with m_col3:
