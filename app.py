@@ -62,7 +62,7 @@ st.markdown("""
 
     /* 이미 줄여놓은 초소형 판매처/객실명 (기존 유지) */
     .small-font {
-        font-size: 6.5px !important; /* 0.65em 상당 */
+        font-size: 9px !important; /* 0.65em 상당 */
         color: #666 !important;
         line-height: 0.8 !important;
         display: block;
