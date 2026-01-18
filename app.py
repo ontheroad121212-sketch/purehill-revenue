@@ -1,75 +1,67 @@
 import streamlit as st
 import pandas as pd
+import requests
 from datetime import datetime, timedelta
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-import time
 
-def get_driver():
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    
-    # [강력 우회 옵션들]
-    options.add_argument(f'user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option('useAutomationExtension', False)
-    
-    options.binary_location = "/usr/bin/chromium"
-    service = Service("/usr/bin/chromedriver")
-    driver = webdriver.Chrome(service=service, options=options)
-    
-    # 웹드라이버라는 흔적을 완전히 제거하는 자바스크립트 실행
-    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-    return driver
+st.set_page_config(page_title="앰버 AI 지배인", layout="wide")
+st.title("🏨 앰버 AI 지배인: API 기반 가격 수집")
 
-st.title("🏨 앰버 AI 지배인: 가격 수집기")
+# 1. 설정 (여기에 본인의 API Key를 넣으세요)
+SERP_API_KEY = "여기에_복사한_API_KEY를_넣으세요"
 
-target_date = st.sidebar.date_input("조회 날짜", datetime(2026, 1, 25))
-checkin, checkout = target_date.strftime("%Y-%m-%d"), (target_date + timedelta(days=1)).strftime("%Y-%m-%d")
+target_date = st.sidebar.date_input("조회 날짜 선택", datetime(2026, 1, 25))
+checkin = target_date.strftime("%Y-%m-%d")
+checkout = (target_date + timedelta(days=1)).strftime("%Y-%m-%d")
 
-if st.button('🚀 실시간 요금 수집 시작'):
-    driver = get_driver()
-    url = f"https://hotels.naver.com/detail/hotels/N5279751/rates?checkIn={checkin}&checkOut={checkout}&adultCnt=2"
-    
+st.info(f"조회 대상: 그랜드 조선 제주 ({checkin} ~ {checkout})")
+
+if st.button('🚀 실시간 요금 가져오기'):
+    # SerpApi의 네이버 호텔 검색 파라미터
+    params = {
+        "engine": "naver_hotels",
+        "hotel_id": "N5279751", # 그랜드 조선 제주
+        "check_in": checkin,
+        "check_out": checkout,
+        "adults": "2",
+        "api_key": SERP_API_KEY
+    }
+
     try:
-        with st.spinner('네이버 보안벽 우회 및 데이터 렌더링 대기 중...'):
-            driver.get(url)
+        with st.spinner('API 서버에서 데이터를 배달받는 중...'):
+            response = requests.get("https://serpapi.com/search", params=params)
+            data = response.json()
             
-            # [핵심] 가격 요소가 나타날 때까지 최대 20초간 "지켜보기"
-            wait = WebDriverWait(driver, 20)
-            # 가격 판매처 클래스명(Price_seller)이 화면에 보일 때까지 대기
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "[class*='Price_seller']")))
-            
-            # 렌더링 직후 살짝 더 기다려주기
-            time.sleep(2)
+            # API 응답에서 가격 리스트 추출
+            # SerpApi의 결과 구조에 따라 달라질 수 있습니다.
+            prices = data.get("prices", [])
 
-            sellers = driver.find_elements(By.CSS_SELECTOR, "[class*='Price_seller']")
-            prices = driver.find_elements(By.CSS_SELECTOR, "[class*='Price_show']")
-
-            results = [{"판매처": s.text, "가격": p.text} for s, p in zip(sellers, prices) if s.text and p.text]
-
-            if results:
-                st.success(f"✅ {len(results)}개의 요금을 찾았습니다!")
+            if prices:
+                st.success(f"✅ 성공적으로 {len(prices)}개의 판매처를 확인했습니다.")
+                
+                results = []
+                for p in prices:
+                    results.append({
+                        "판매처": p.get("source"),
+                        "가격": p.get("price")
+                    })
+                
+                df = pd.DataFrame(results)
+                
+                # 대시보드 표시
                 cols = st.columns(4)
-                cols[0].metric("전체 최저가", results[0]['가격'])
+                cols[0].metric("전체 최저가", f"{results[0]['가격']}")
+                
                 for r in results:
-                    if "아고다" in r['판매처']: cols[1].metric("아고다", r['가격'])
-                    if "트립닷컴" in r['판매처']: cols[2].metric("트립닷컴", r['가격'])
-                    if "트립비토즈" in r['판매처']: cols[3].metric("트립비토즈", r['가격'])
-                st.dataframe(pd.DataFrame(results), use_container_width=True)
+                    name = r['판매처']
+                    if "Agoda" in name or "아고다" in name: cols[1].metric("아고다", r['가격'])
+                    if "Trip.com" in name or "트립닷컴" in name: cols[2].metric("트립닷컴", r['가격'])
+                    if "Tripbitoz" in name or "트립비토즈" in name: cols[3].metric("트립비토즈", r['가격'])
+
+                st.write("---")
+                st.dataframe(df, use_container_width=True)
             else:
-                st.error("데이터 로딩은 성공했으나, 내용을 읽지 못했습니다.")
+                st.warning("이 날짜에는 판매 중인 객실이 없거나 데이터를 가져올 수 없습니다.")
+                st.json(data) # 데이터 구조 확인용
 
     except Exception as e:
-        st.error(f"시간 초과 또는 오류: 네이버가 평소보다 느리거나 로봇을 강하게 차단 중입니다.")
-        st.info("재시도 버튼을 한 번 더 눌러보세요.")
-    finally:
-        driver.quit()
+        st.error(f"API 호출 중 오류 발생: {e}")
