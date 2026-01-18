@@ -9,7 +9,7 @@ SHEET_ID = "지배인님의_시트_ID"
 URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
 
 try:
-    df = pd.read_csv(URL)
+    df = pd.read_csv(URL, encoding='utf-8')
     if not df.empty:
         # 날짜 필터 추가
         st.sidebar.header("📅 날짜 선택")
