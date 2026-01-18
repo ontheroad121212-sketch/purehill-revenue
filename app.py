@@ -88,7 +88,7 @@ try:
         # 만약 지배인님이 엠버 특정 객실을 선택했다면, 데이터프레임을 해당 객실 기준으로 필터링
         # (단, 경쟁사 비교를 위해 엠버 외 호텔은 모든 객실을 보여주되, 엠버는 선택된 객실만 남김)
         if selected_core_rooms:
-        f_df = f_df[~f_df['호텔명'].str.contains("엠버") | f_df['객실타입'].isin(selected_core_rooms)]
+            f_df = f_df[~f_df['호텔명'].str.contains("엠버") | f_df['객실타입'].isin(selected_core_rooms)]
 
         # [핵심] 엠버 데이터 정밀 추출
         amber_in_filter = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
