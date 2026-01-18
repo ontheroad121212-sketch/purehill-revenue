@@ -17,18 +17,9 @@ def get_driver():
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     
-    # 서버 환경(리눅스)에서 크롬 위치를 직접 지정합니다.
-    options.binary_location = "/usr/bin/chromium-browser"
-    
-    # 서비스 설정 (스트림릿 클라우드용)
-    service = Service("/usr/bin/chromedriver")
-    
-    try:
-        return webdriver.Chrome(service=service, options=options)
-    except:
-        # 위 경로가 안 될 경우를 대비한 백업 로직
-        return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
+    # 서버에 설치된 크롬을 자동으로 찾아 실행합니다.
+    service = Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=options)
 st.set_page_config(page_title="앰버 AI 지배인", layout="wide")
 st.title("🏨 앰버 AI 지배인: 실시간 가격 수집")
 
