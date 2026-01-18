@@ -8,6 +8,18 @@ from datetime import datetime
 # 1. 페이지 설정 및 디자인
 st.set_page_config(page_title="엠버 AI 지배인 v6.2", layout="wide")
 
+# 총지배인용 럭셔리 골드 디자인 테마
+st.markdown("""
+    <style>
+    .main { background-color: #f4f7f6; }
+    .gm-card { 
+        background-color: #1b263b; color: white; padding: 25px; 
+        border-radius: 15px; margin-bottom: 25px; border-left: 10px solid #e0e1dd;
+    }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid #e9ecef; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+    </style>
+    """, unsafe_allow_html=True)
+
 # 직관성을 극대화하는 맞춤형 CSS
 st.markdown("""
     <style>
@@ -99,6 +111,35 @@ try:
         # 엠버 데이터 정밀 추출
         amber_in_filter = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
         amber_min_val = amber_in_filter['가격'].min() if not amber_in_filter.empty else 0
+
+        # ---------------------------------------------------------
+        # 🔴 [신규] 총지배인용 KPI 경영 요약 섹션
+        # ---------------------------------------------------------
+        st.markdown('<div class="gm-card">', unsafe_allow_html=True)
+        st.subheader("🏁 Executive Summary (총지배인 요약 리포트)")
+    
+        f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels))]
+        amber_df = f_df[f_df['호텔명'].contains("엠버")]
+        comp_df = f_df[~f_df['호텔명'].contains("엠버")]
+    
+        if not amber_df.empty and not comp_df.empty:
+            col1, col2, col3 = st.columns(3)
+        
+            # 1. MPI (Market Penetration Index) 계산
+            amber_avg = amber_df['가격'].mean()
+            market_avg = comp_df['가격'].mean()
+            mpi = (amber_avg / market_avg) * 100
+            col1.metric("시장 지배력 지수(MPI)", f"{mpi:.1f}%", f"{mpi-100:+.1f}% vs Market")
+        
+            # 2. 가격 방어력 (Price Defense)
+            price_std = amber_df['가격'].std()
+            col2.metric("가격 방어력 (안정성)", f"{100 - (price_std/amber_avg*100):.1f}점", "채널별 균등가 유지 중")
+        
+            # 3. 수익 기회 지수
+            lead_time_dumping = comp_df[comp_df['리드타임'] <= 3]['가격'].min()
+            col3.metric("투숙 임박 수익 기회", f"{amber_avg - lead_time_dumping:,.0f}원", "경쟁사 최저가 대비 우위")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
         # ---------------------------------------------------------
         # 💡 [핵심 기능 1] AI 오늘의 한 수 (Daily Action Plan)
