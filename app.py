@@ -110,36 +110,32 @@ try:
     if not df.empty:
         # --- [사이드바 필터 구역] ---
         st.sidebar.header("🔍 분석 필터 설정")
-        
-        # 1. 날짜 멀티 선택
         all_dates = sorted(df['날짜'].unique())
         selected_dates = st.sidebar.multiselect("📅 분석 대상 투숙일 선택", options=all_dates, default=[all_dates[-1]] if all_dates else [])
         
-        # 2. 13개 전체 호텔 리스트 고정
         target_list = ["엠버퓨어힐", "그랜드하얏트", "파르나스", "신라호텔", "롯데호텔", "신라스테이", "해비치", "신화메리어트", "히든클리프", "더시에나", "조선힐스위트", "메종글래드", "그랜드조선제주"]
-        all_hotels = sorted(df['호텔명'].unique())
-        selected_hotels = st.sidebar.multiselect("🏨 분석 대상 호텔 선택", options=all_hotels, default=[h for h in target_list if h in all_hotels])
-
-        # 3. [업데이트] 판매처(채널) 필터 - 지배인님 요청 채널 전수 반영
-        st.sidebar.markdown("---")
-        st.sidebar.header("📱 판매처(채널) 필터")
-        # 수집 데이터에 있는 실제 채널 리스트 추출
+        selected_hotels = st.sidebar.multiselect("🏨 분석 대상 호텔 선택", options=sorted(df['호텔명'].unique()), default=[h for h in target_list if h in df['호텔명'].unique()])
+        
         all_channels = sorted(df['판매처'].unique())
-        selected_channels = st.sidebar.multiselect("모니터링 채널 선택", options=all_channels, default=all_channels)
+        selected_channels = st.sidebar.multiselect("📱 판매처(채널) 필터", options=all_channels, default=all_channels)
 
-        # 3. 엠버 핵심 객실 필터 고정
-        st.sidebar.markdown("---")
-        st.sidebar.header("🎯 엠버 전용 핵심 객실")
-        ember_core_rooms = ["그린밸리 디럭스 더블", "힐 엠버 트윈", "힐 파인 더블"]
-        existing_rooms = [r for r in ember_core_rooms if r in df['객실타입'].unique()]
-        selected_core_rooms = st.sidebar.multiselect("🛏️ 엠버 분석 객실 선택", options=existing_rooms, default=existing_rooms)
+        ember_core_rooms = ["그린밸리", "힐 엠버", "힐 파인"] # 필터링 확률을 높이기 위해 단어를 짧게 수정
+        selected_core_rooms = st.sidebar.multiselect("🎯 엠버 분석 객실 키워드", options=ember_core_rooms, default=ember_core_rooms)
 
-        # 4. 필터링 적용 (중복 필터링 방지를 위해 순서 조정)
+        # 1차 필터링
         f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels)) & (df['판매처'].isin(selected_channels))]
         
+        # [핵심] 20만원대 누락 방지: 엠버 객실명 '포함' 방식 필터링
         if selected_core_rooms:
-            # 엠버는 선택된 객실만, 타 호텔은 전체 유지
-            f_df = f_df[ (~f_df['호텔명'].str.contains("엠버")) | (f_df['객실타입'].isin(selected_core_rooms)) ]
+            ember_mask = f_df['호텔명'].str.contains("엠버", na=False)
+            # 엠버가 아닌 호텔은 유지, 엠버는 키워드 포함된 것만 유지
+            f_df = f_df[ (~ember_mask) | 
+                         (f_df['객실타입'].str.contains('|'.join(selected_core_rooms), na=False)) ]
+
+        # 데이터 분리 및 최저가 재산출
+        amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
+        comp_df = f_df[~f_df['호텔명'].str.contains("엠버", na=False)]
+        amber_min_val = amber_df['가격'].min() if not amber_df.empty else 0
 
         # 엠버와 경쟁사 데이터 분리 (AI 리포트에서 사용됨)
         amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
@@ -264,14 +260,14 @@ try:
 
         st.markdown("---")
 
-# 🚦 일자별 호텔 상세 최저가 매트릭스 (인덱스 복구 및 열 너비 고정형)
+        # 🚦 일자별 호텔 상세 최저가 매트릭스 (인덱스 복구 및 열 너비 고정형)
         st.subheader("🚦 일자별 호텔 상세 최저가 매트릭스 (판매처/객실 포함)")
         
         def get_min_detail(x):
             if x.empty: return "-"
-            min_row = x.sort_values('가격').iloc[0]
-            # div 구조를 유지하되 간격을 더 정밀하게 밀착
-            return f"<div class='price-font'>{min_row['가격']:,.0f}원</div><div class='small-font'>({min_row['판매처']}/{min_row['객실타입']})</div>"
+            # 무조건 가격이 가장 낮은 행을 첫 번째로 가져옴 (20만원대 요금 확보)
+            min_row = x.sort_values(by='가격', ascending=True).iloc[0]
+            return f"<div class='price-font'>{min_row['가격']:,.0f}원</div><div class='small-font'>({min_row['판매처']}/{min_row['객실타입'][:10]})</div>"
 
         # 데이터 피벗
         detail_pivot = f_df.groupby(['호텔명', '날짜']).apply(get_min_detail).unstack()
