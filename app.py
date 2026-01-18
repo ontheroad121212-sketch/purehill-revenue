@@ -18,7 +18,7 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
     .gm-card h3 { color: #e0e1dd !important; margin-bottom: 20px; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #e9ecef; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid #e9ecef; }
     div[data-testid="stMetricValue"] { font-size: 28px; font-weight: 700; }
     .action-card { background-color: #f0f7ff; border-left: 5px solid #007bff; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
     .parity-alert { background-color: #fff5f5; border-left: 5px solid #ff4b4b; padding: 15px; border-radius: 8px; margin-bottom: 10px; color: #d32f2f; font-weight: bold; }
@@ -51,7 +51,7 @@ st.markdown("""
     .small-font {
         font-size: 0.6em;
         color: #888;
-        line-height: 1.1;
+        line-height: 1.0;
     }
     </style>
     """, unsafe_allow_html=True)
