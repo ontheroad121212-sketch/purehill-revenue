@@ -149,24 +149,38 @@ try:
         # 🤖 AI 자동 경영 분석 리포트 모듈 (수정 완료)
         # ---------------------------------------------------------
         st.markdown('<div class="ai-report-card">', unsafe_allow_html=True)
-        st.subheader("🤖 AI Executive Intelligence Report")
-    
+        st.subheader("📊 AI 수익 경영 정밀 리포트")
+
         if not amber_df.empty and not comp_df.empty:
+            # 1. 상세 지표 계산
             amber_avg = amber_df['가격'].mean()
+            comp_min = comp_df['가격'].min()
             market_avg = comp_df['가격'].mean()
             mpi = (amber_avg / market_avg) * 100
-            status = "우수" if mpi > 110 else "안정" if mpi > 95 else "주의"
-        
+    
+            # 2. 상황별 맞춤 메시지 생성 (프롬프트 핵심)
+            if mpi < 75:
+                strategy = "🔥 공격적 점유율 확대 구간 (Aggressive Growth)"
+                action = f"경쟁사 최저가({comp_min:,.0f}원) 대비 현재 엠버는 매우 강력한 가격 우위에 있습니다. 점유율 65% 달성 전까지는 현재가 유지가 유리하나, 주말(토) 요금은 즉시 {amber_avg*1.15:,.0f}원으로 상향 조정을 제안합니다."
+            elif 75 <= mpi < 95:
+                strategy = "⚖️ 수익성-점유율 균형 구간 (Balanced Yield)"
+                action = "핵심 채널(아고다/트립닷컴)의 요금을 실시간 모니터링하여 MPI를 90%선까지 야금야금 끌어올리며 마진을 확보해야 합니다."
+            else:
+                strategy = "💎 프리미엄 수익 극대화 구간 (Premium Value)"
+                action = "시장 평균보다 고가입니다. 객실 가동률이 50% 미만으로 떨어지지 않도록 투숙 3일 전 땡처리 물량을 전략적으로 배분하십시오."
+
             st.markdown(f"""
-            **[엠버퓨어힐 수익성 분석 결론]**
-            현재 엠버의 시장 지배력 지수(MPI)는 **{mpi:.1f}%**로 시장 평균 대비 **{status}**한 상태입니다. 
-        
-            1. **경쟁사 동향:** 최근 수집된 데이터 기준 경쟁사들의 최저가는 {comp_df['가격'].min():,.0f}원입니다.
-            2. **가격 파리티:** 선택된 채널 중 기준가와 차이가 발생하는 플랫폼이 있는지 하단 상세 알림을 확인하십시오.
-            3. **수익 전략:** 현재 엠버의 포지셔닝은 시장가 대비 프리미엄을 유지하고 있습니다.
+            **[오늘의 경영 전략]: {strategy}**
+    
+            * **시장 지배력(MPI):** {mpi:.1f}% (시장 평균 {market_avg:,.0f}원 대비 {amber_avg:,.0f}원)
+            * **수익 분석:** 현재 점유율 50%대에서 매출 170억 목표 달성을 위해서는 객실 단가(ADR) 보다는 **가동률(Occ) 70% 선점**이 최우선 과제입니다.
+            * **실행 지침:** {action}
             """)
+    
+    
+    
         else:
-            st.info("💡 사이드바에서 엠버와 경쟁 호텔을 선택하시면 AI 분석이 시작됩니다.")
+            st.info("💡 분석을 위한 충분한 데이터가 확보되지 않았습니다. 필터를 조정해 주세요.")
         st.markdown('</div>', unsafe_allow_html=True)
         
         # ---------------------------------------------------------
