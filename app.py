@@ -14,60 +14,65 @@ def get_driver():
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     options.binary_location = "/usr/bin/chromium"
+    # 네이버의 자동화 탐지를 피하기 위한 유저 에이전트 추가
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
     service = Service("/usr/bin/chromedriver")
     return webdriver.Chrome(service=service, options=options)
 
 st.title("🏨 앰버 AI 지배인: 가격 수집기")
 
-# 1. 날짜 설정 (하이픈 없는 형식을 위해 포맷 변경)
+# 1. 날짜 설정 (네이버가 좋아하는 YYYY-MM-DD 형식으로 일단 시도)
 target_date = st.sidebar.date_input("조회 날짜 선택", datetime.now() + timedelta(days=7))
-checkin_str = target_date.strftime("%Y%m%d") # 예: 20260125
-checkout_str = (target_date + timedelta(days=1)).strftime("%Y%m%d")
+checkin = target_date.strftime("%Y-%m-%d")
+checkout = (target_date + timedelta(days=1)).strftime("%Y-%m-%d")
 
 hotel_id = "1335035205" # 그랜드 조선 제주
 
 if st.button('🚀 그랜드 조선 제주 가격 수집 시작'):
     driver = get_driver()
     
-    # 네이버 호텔 최신 주소 형식 (YYYYMMDD 방식)
-    url = f"https://hotels.naver.com/hotels/{hotel_id}?checkIn={checkin_str}&checkOut={checkout_str}&adultCnt=2"
+    # 네이버 호텔 최신 주소 규격
+    url = f"https://hotels.naver.com/hotels/{hotel_id}?checkIn={checkin}&checkOut={checkout}&adultCnt=2"
     
     try:
-        with st.spinner(f'{target_date} 데이터를 읽어오는 중...'):
+        with st.spinner(f'네이버 호텔 분석 중...'):
             driver.get(url)
             
-            # 혹시 모를 팝업이나 알림창 자동 닫기 시도
+            # [핵심] 알림창(유효하지 않은 경로)이 뜨면 자동으로 닫기
+            time.sleep(3)
             try:
                 alert = driver.switch_to.alert
-                alert.accept() # 알림창이 뜨면 확인 버튼 누름
+                st.warning(f"네이버 알림 발생: {alert.text} (무시하고 진행 시도)")
+                alert.accept()
             except:
                 pass 
 
-            time.sleep(8) # 충분한 로딩 대기
+            # 페이지 로딩 대기
+            time.sleep(7) 
 
-            # 데이터 추출
-            sellers = driver.find_elements(By.CLASS_NAME, "Price_seller__2L9m-")
-            prices = driver.find_elements(By.CLASS_NAME, "Price_show__3_W0o")
+            # 가격 정보 추출 (클래스 이름이 바뀌었을 것에 대비해 좀 더 범용적인 방법 사용)
+            sellers = driver.find_elements(By.CSS_SELECTOR, "[class*='Price_seller']")
+            prices = driver.find_elements(By.CSS_SELECTOR, "[class*='Price_show']")
 
             results = []
             for s, p in zip(sellers, prices):
-                results.append({"판매처": s.text, "가격": p.text})
+                if s.text and p.text:
+                    results.append({"판매처": s.text, "가격": p.text})
 
             if results:
                 st.subheader(f"📊 수집 결과 ({target_date})")
                 cols = st.columns(4)
                 cols[0].metric("전체 최저가", results[0]['가격'])
                 
-                # 채널별 데이터 매칭
                 for item in results:
                     if "아고다" in item['판매처']: cols[1].metric("아고다", item['가격'])
                     if "트립닷컴" in item['판매처']: cols[2].metric("트립닷컴", item['가격'])
                     if "트립비토즈" in item['판매처']: cols[3].metric("트립비토즈", item['가격'])
                 
-                st.dataframe(pd.DataFrame(results), use_container_width=True)
+                st.table(pd.DataFrame(results))
             else:
-                st.warning("가격 데이터를 찾지 못했습니다. 네이버 페이지 구조가 바뀌었을 수 있습니다.")
-                st.info(f"수집 시도 주소: {url}")
+                st.error("데이터를 찾지 못했습니다. 네이버의 자동 수집 방어벽에 걸렸을 수 있습니다.")
+                st.info(f"접속 시도한 주소: {url}")
 
     except Exception as e:
         st.error(f"오류가 발생했습니다: {e}")
