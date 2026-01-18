@@ -32,42 +32,40 @@ st.caption("매트릭스 상세 분석 및 KPI 리포트 시스템")
 st.markdown("""
     <style>
     .main { background-color: #f4f7f6; }
-    .gm-card { 
-        background-color: #1b263b; color: white; padding: 25px; 
-        border-radius: 15px; margin-bottom: 25px; border-left: 10px solid #e0e1dd;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    .gm-card h3 { font-size: 1.2rem; color: #e0e1dd !important; } /* 타이틀 크기도 소폭 축소 */
-    .stMetric { background-color: #ffffff; padding: 10px; border-radius: 12px; border: 1px solid #e9ecef; }
-    div[data-testid="stMetricValue"] { font-size: 22px; font-weight: 700; } /* 메트릭 숫자 축소 */
     
-    /* 매트릭스(표) 전체 폰트 강제 축소 */
-    .dataframe {
-        font-size: 11px !important; /* 전체 텍스트 약 2포인트 축소 */
-    }
-    
-    /* 인덱스(행/열 제목) 볼드체 크기 축소 */
-    th.index_name, th.col_heading, th.row_heading {
-        font-size: 11px !important;
-        font-weight: 600 !important; /* 너무 굵지 않게 조정 */
-        padding: 4px 8px !important;
-    }
-
-    /* 본문 가격 텍스트 스타일 */
-    .price-font {
-        font-size: 12px; /* 기존보다 2포인트 축소 */
-        font-weight: 700;
-        color: #1a1c1e;
-    }
-
-    /* 이미 줄여놓은 초소형 판매처/객실명 (기존 유지) */
-    .small-font {
-        font-size: 9px !important; /* 0.65em 상당 */
-        color: #666 !important;
+    /* 1. 표 전체 간격 압축 (Padding 최소화) */
+    .dataframe td, .dataframe th {
+        padding: 2px 4px !important;  /* 기존 여백을 2px로 극단적 축소 */
         line-height: 1.1 !important;
-        display: block;
-        margin-top: 1px;
+        border: 1px solid #eee !important;
     }
+    
+    /* 2. 표 제목(인덱스) 크기 및 볼드체 축소 */
+    th.col_heading, th.row_heading {
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        background-color: #f8f9fa !important;
+    }
+
+    /* 3. 본문 가격 텍스트 (2포인트 축소 및 간격 제거) */
+    .price-font {
+        font-size: 11px !important; 
+        font-weight: 700;
+        display: block;
+        margin-bottom: -2px; /* 아래 글자와의 간격 강제 축소 */
+    }
+
+    /* 4. 판매처/객실명 초소형 텍스트 */
+    .small-font {
+        font-size: 8.5px !important; 
+        color: #888 !important;
+        line-height: 1.0 !important;
+        display: block;
+    }
+
+    /* 5. 기타 경영 카드 스타일 유지 */
+    .gm-card { background-color: #1b263b; color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+    .stMetric { background-color: #ffffff; padding: 8px; border-radius: 10px; border: 1px solid #e9ecef; }
     </style>
     """, unsafe_allow_html=True)
 
