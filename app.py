@@ -8,15 +8,25 @@ from datetime import datetime
 # 1. 페이지 설정 및 디자인
 st.set_page_config(page_title="엠버 AI 지배인 v6.2", layout="wide")
 
-# 총지배인용 럭셔리 골드 디자인 테마
+# 총지배인용 프리미엄 다크 네이비 테마
 st.markdown("""
     <style>
     .main { background-color: #f4f7f6; }
     .gm-card { 
         background-color: #1b263b; color: white; padding: 25px; 
         border-radius: 15px; margin-bottom: 25px; border-left: 10px solid #e0e1dd;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
     .stMetric { background-color: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid #e9ecef; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+    div[data-testid="stMetricValue"] { font-size: 28px; font-weight: 700; color: #1a1c1e; }
+    .action-card { 
+        background-color: #f0f7ff; border-left: 5px solid #007bff; padding: 20px; 
+        border-radius: 8px; margin-bottom: 20px;
+    }
+    .parity-alert { 
+        background-color: #fff5f5; border-left: 5px solid #ff4b4b; padding: 15px; 
+        border-radius: 8px; margin-bottom: 10px; color: #d32f2f; font-weight: bold;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -113,32 +123,34 @@ try:
         amber_min_val = amber_in_filter['가격'].min() if not amber_in_filter.empty else 0
 
         # ---------------------------------------------------------
-        # 🔴 [신규] 총지배인용 KPI 경영 요약 섹션
+        # 👑 [수정 완료] 총지배인용 KPI 경영 요약 섹션
         # ---------------------------------------------------------
-        st.markdown('<div class="gm-card">', unsafe_allow_html=True)
-        st.subheader("🏁 Executive Summary (총지배인 요약 리포트)")
-    
-        f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels))]
-        amber_df = f_df[f_df['호텔명'].contains("엠버")]
-        comp_df = f_df[~f_df['호텔명'].contains("엠버")]
-    
-        if not amber_df.empty and not comp_df.empty:
-            col1, col2, col3 = st.columns(3)
+        # 에러 수정 포인트: .contains() -> .str.contains()
+        amber_df = f_df[f_df['호텔명'].str.contains("엠버", na=False)]
+        comp_df = f_df[~f_df['호텔명'].str.contains("엠버", na=False)]
         
-            # 1. MPI (Market Penetration Index) 계산
+        st.markdown('<div class="gm-card">', unsafe_allow_html=True)
+        st.subheader("🏁 Executive Summary (경영 지표 요약)")
+        
+        if not amber_df.empty and not comp_df.empty:
+            kpi1, kpi2, kpi3 = st.columns(3)
+            
+            # 1. MPI (Market Penetration Index)
             amber_avg = amber_df['가격'].mean()
             market_avg = comp_df['가격'].mean()
             mpi = (amber_avg / market_avg) * 100
-            col1.metric("시장 지배력 지수(MPI)", f"{mpi:.1f}%", f"{mpi-100:+.1f}% vs Market")
-        
-            # 2. 가격 방어력 (Price Defense)
+            kpi1.metric("시장 지배력 지수(MPI)", f"{mpi:.1f}%", f"{mpi-100:+.1f}% vs 시장평균")
+            
+            # 2. 가격 안정성 점수
             price_std = amber_df['가격'].std()
-            col2.metric("가격 방어력 (안정성)", f"{100 - (price_std/amber_avg*100):.1f}점", "채널별 균등가 유지 중")
-        
-            # 3. 수익 기회 지수
-            lead_time_dumping = comp_df[comp_df['리드타임'] <= 3]['가격'].min()
-            col3.metric("투숙 임박 수익 기회", f"{amber_avg - lead_time_dumping:,.0f}원", "경쟁사 최저가 대비 우위")
-        
+            stability = 100 - (price_std / amber_avg * 100) if amber_avg > 0 else 0
+            kpi2.metric("가격 방어 안정성", f"{max(0, stability):.1f}점", "채널별 균등가 유지")
+            
+            # 3. 투숙 임박 수익 기회 (경쟁사 땡처리 대비 엠버의 프리미엄폭)
+            comp_min = comp_df['가격'].min()
+            kpi3.metric("프리미엄 수익폭", f"{amber_avg - comp_min:,.0f}원", "경쟁사 최저가 대비")
+        else:
+            st.write("데이터 부족으로 KPI를 산출할 수 없습니다.")
         st.markdown('</div>', unsafe_allow_html=True)
 
         # ---------------------------------------------------------
