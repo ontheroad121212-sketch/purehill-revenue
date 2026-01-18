@@ -122,23 +122,31 @@ try:
         # 🚀 [추가 로직] 엠버 10대 객실 타입 필터
         st.sidebar.markdown("---")
         st.sidebar.subheader("💎 엠버 객실 정밀 선택")
+        # 각 코드별로 한글/영문 키워드를 모두 매칭하도록 리스트화했습니다.
         ember_room_groups = {
-            "GDB": ["그린밸리 디럭스 더블"], ["Green Valley Deluxe Double"],
-            "GDF": ["그린밸리 디럭스 패밀리"], ["Green Valley Deluxe Family"],
-            "FDB": ["포레스트 가든 더블"], ["Forest Garden Double"],
-            "FDE": ["포레스트 가든 더블 EB"], ["Forest Garden Double EB"],
-            "FDF": ["포레스트 플로라 더블"], ["포레스트 플로랄 더블"], ["Forest Flora Double"], ["Forest Floral Double"], 
-            "FPT": ["포레스트 펫 더블"], ["Forest Pet Double"],
-            "HDP": ["힐 파인 더블"], ["Hill Pine Double"],
-            "HDT": ["힐 엠버 트윈"], ["Hill Amber Twin"],
-            "HDF": ["힐 루나 패밀리"], ["Hill Luna Family"],
-            "PPV": ["프라이빗 풀 빌라"], ["Forest Private Pool Villa"] 
+            "GDB (디럭스 더블)": ["그린밸리 디럭스 더블", "Green Valley Deluxe Double"],
+            "GDF (디럭스 패밀리)": ["그린밸리 디럭스 패밀리", "Green Valley Deluxe Family"],
+            "FDB (가든 더블)": ["포레스트 가든 더블", "Forest Garden Double"],
+            "FDE (가든 더블 EB)": ["포레스트 가든 더블 EB", "Forest Garden Double EB"],
+            "FDF (플로라 더블)": ["포레스트 플로라 더블", "포레스트 플로랄 더블", "Forest Flora Double", "Forest Floral Double"],
+            "FPT (펫 더블)": ["포레스트 펫 더블", "Forest Pet Double"],
+            "HDP (힐 파인 더블)": ["힐 파인 더블", "Hill Pine Double"],
+            "HDT (힐 엠버 트윈)": ["힐 엠버 트윈", "Hill Amber Twin"],
+            "HDF (힐 루나 패밀리)": ["힐 루나 패밀리", "Hill Luna Family"],
+            "PPV (풀빌라)": ["프라이빗 풀 빌라", "프라이빗 풀빌라", "Forest Private Pool Villa"]
         }
-        selected_groups = st.sidebar.multiselect("분석 객실군", options=list(ember_room_groups.keys()), default=list(ember_room_groups.keys()))
         
+        # 지배인님이 사이드바에서 개별 코드를 다 따로 선택할 수 있습니다.
+        selected_codes = st.sidebar.multiselect(
+            "분석 객실 선택", 
+            options=list(ember_room_groups.keys()), 
+            default=list(ember_room_groups.keys())
+        )
+        
+        # 선택된 코드들에 해당하는 모든 키워드 합치기
         active_keywords = []
-        for g in selected_groups:
-            active_keywords.extend(ember_room_groups[g])
+        for code in selected_codes:
+            active_keywords.extend(ember_room_groups[code])
 
         # 1차 필터링
         f_df = df[(df['날짜'].isin(selected_dates)) & (df['호텔명'].isin(selected_hotels)) & (df['판매처'].isin(selected_channels))]
