@@ -1,50 +1,71 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 
-# 페이지 설정
+# 1. 셀레니움 브라우저 설정 (스트림릿 클라우드용)
+def get_driver():
+    options = Options()
+    options.add_argument("--headless")  # 화면 없이 실행
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
 st.set_page_config(page_title="앰버 AI 지배인", layout="wide")
+st.title("🏨 앰버 AI 지배인: 실시간 가격 수집")
 
-st.title("🏨 앰버 7대 플랫폼 통합 AI 지배인")
-st.info("현재 단계: 경쟁사(그랜드 조선 제주) 요금 모니터링 화면 구현")
+# 사이드바 설정
+target_date = st.sidebar.date_input("체크인 날짜", datetime.now() + timedelta(days=1))
+hotel_id = "1335035205" # 그랜드 조선 제주 고유 ID
 
-# 1. 날짜 선택 (오늘 기준 내일 날짜로 기본 세팅)
-st.sidebar.header("조회 설정")
-target_date = st.sidebar.date_input("체크인 날짜 선택", datetime.now() + timedelta(days=1))
-date_str = target_date.strftime("%Y%m%d")
+if st.button('🚀 그랜드 조선 제주 가격 수집 시작'):
+    driver = get_driver()
+    checkin_str = target_date.strftime('%Y-%m-%d')
+    checkout_str = (target_date + timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    # 네이버 호텔 검색 URL
+    url = f"https://hotels.naver.com/hotels/{hotel_id}?checkIn={checkin_str}&checkOut={checkout_str}&adultCnt=2"
+    
+    try:
+        with st.spinner('네이버 호텔 접속 중... (약 10~20초 소요)'):
+            driver.get(url)
+            # 가격 표가 나타날 때까지 최대 20초 대기
+            wait = WebDriverWait(driver, 20)
+            wait.until(EC.presence_of_element_located((By.CLASS_NAME, "SearchList_SearchList__1S_i_")))
+            
+            st.success("데이터 로딩 완료!")
+            
+            # 요금 찾기 (네이버 호텔의 현재 구조에 맞춘 선택자 - 실제 사이트 구조 변경시 수정 필요)
+            prices = driver.find_elements(By.CLASS_NAME, "Price_show__3_W0o")
+            sellers = driver.find_elements(By.CLASS_NAME, "Price_seller__2L9m-")
+            
+            price_data = {}
+            for seller, price in zip(sellers, prices):
+                name = seller.text
+                val = price.text
+                if name in ["아고다", "트립닷컴", "트립비토즈"] or not price_data:
+                    if "최저가" not in price_data:
+                        price_data["최저가"] = val # 맨 처음 나오는게 보통 최저가
+                    if name in ["아고다", "트립닷컴", "트립비토즈"]:
+                        price_data[name] = val
 
-# 2. 네이버 호텔 바로가기 링크 생성 (그랜드 조선 제주 ID: 1335035205)
-# 이 링크는 선택한 날짜에 맞게 자동으로 변합니다.
-naver_url = f"https://hotels.naver.com/hotels/1335035205?checkIn={target_date.strftime('%Y-%m-%d')}&checkOut={(target_date + timedelta(days=1)).strftime('%Y-%m-%d')}&adultCnt=2"
+            # 결과 화면 표시
+            cols = st.columns(4)
+            cols[0].metric("전체 최저가", price_data.get("최저가", "N/A"))
+            cols[1].metric("아고다", price_data.get("아고다", "N/A"))
+            cols[2].metric("트립닷컴", price_data.get("트립닷컴", "N/A"))
+            cols[3].metric("트립비토즈", price_data.get("트립비토즈", "N/A"))
 
-st.subheader(f"📊 경쟁사 모니터링: 그랜드 조선 제주 ({target_date} 기준)")
-st.markdown(f"[👉 직접 네이버 호텔에서 요금 확인하기]({naver_url})")
+    except Exception as e:
+        st.error(f"오류 발생: {e}")
+    finally:
+        driver.quit()
 
-# 3. 요금 표시 구역 (임시 데이터 - 다음 스텝에서 자동 수집 연결)
-st.write("---")
-st.write("💡 **실시간 요금 현황** (아직은 자동 수집 전이라 예시 숫자가 표시됩니다)")
-
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(label="최저가 요금", value="285,000원", delta="-2,500원")
-with col2:
-    st.metric(label="아고다(Agoda)", value="290,000원")
-with col3:
-    st.metric(label="트립닷컴(Trip.com)", value="288,000원")
-with col4:
-    st.metric(label="트립비토즈(Tripbitoz)", value="285,000원")
-
-# 4. 데이터 저장용 표
-data = {
-    "수집시간": [datetime.now().strftime("%H:%M:%S")],
-    "최저가": ["285,000"],
-    "아고다": ["290,000"],
-    "트립닷컴": ["288,000"],
-    "트립비토즈": ["285,000"]
-}
-df = pd.DataFrame(data)
-st.table(df)
-
-# 5. 향후 자동화될 부분 안내
-st.warning("⚠️ 다음 스텝: 위 '가격'들을 사람 대신 컴퓨터가 버튼 하나로 긁어오게(Crawling) 만들 예정입니다.")
+st.markdown(f"---")
+st.caption("주의: 네이버 호텔 사이트의 구조가 변경되면 수집이 되지 않을 수 있습니다.")
