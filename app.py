@@ -123,10 +123,16 @@ try:
         st.sidebar.markdown("---")
         st.sidebar.subheader("💎 엠버 객실 정밀 선택")
         ember_room_groups = {
-            "그린밸리 (디럭스 더블/패밀리)": ["그린밸리"],
-            "포레스트 (가든/플로라/펫/EB)": ["포레스트"],
-            "힐 (파인/엠버/루나)": ["힐 파인", "힐 엠버", "힐 루나"],
-            "프라이빗 풀빌라": ["풀빌라"]
+            "그린밸리 디럭스 더블": ["GDB"],
+            "그린밸리 디럭스 패밀리": ["GDF"],
+            "포레스트 가든 더블": ["FDB"],
+            "포레스트 가든 더블 EB 엑스트라베드": ["FDE"],
+            "포레스트 플로라 플로랄 더블": ["FDF"],
+            "포레스트 펫 더블": ["FPT"],
+            "힐 파인 더블": ["HDP"],
+            "힐 엠버 트윈": ["HDT"],
+            "힐 루나 패밀리": ["HDF"],
+            "포레스트 프라이빗 풀빌라 프라이빗 풀빌라": ["PPV"]
         }
         selected_groups = st.sidebar.multiselect("분석 객실군", options=list(ember_room_groups.keys()), default=list(ember_room_groups.keys()))
         
