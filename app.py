@@ -8,7 +8,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import json
 
-# 1. 페이지 설정 및 디자인 (지배인님 원본 그대로)
+# 1. 페이지 설정 및 디자인
 st.set_page_config(page_title="엠버 AI 지배인 v6.2", layout="wide")
 
 # 디자인 수정: 남색 바(gm-card) 내부의 가독성 향상
@@ -31,7 +31,7 @@ st.markdown("""
 st.title("🏨 엠버 7대 플랫폼 통합 AI 지배인 v10.0 (Firebase Edition)")
 st.caption("매트릭스 상세 분석 및 KPI 리포트 시스템")
 
-# 직관성을 극대화하는 맞춤형 CSS (지배인님 원본 그대로)
+# 직관성을 극대화하는 맞춤형 CSS
 st.markdown("""
     <style>
     .main { background-color: #f4f7f6; }
@@ -72,17 +72,24 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------
-# 2. [핵심 변경] 데이터 불러오기 함수 (CSV -> Firebase Firestore)
-# ---------------------------------------------------------
+# ------------------------------------------------------------------
+# 2. [핵심 변경구간] 데이터 불러오기 (Firebase 연동 - 무삭제)
+# ------------------------------------------------------------------
 @st.cache_resource
 def init_firebase():
-    # 앱이 다시 실행될 때마다 초기화되지 않도록 체크
     if not firebase_admin._apps:
         try:
-            # Streamlit Secrets에서 JSON 키 로드
-            fb_key_json = st.secrets["FIREBASE_SERVICE_ACCOUNT"]
-            fb_key_dict = json.loads(fb_key_json)
+            # Case 1: "FIREBASE_SERVICE_ACCOUNT = '''...'''" 형태
+            if "FIREBASE_SERVICE_ACCOUNT" in st.secrets:
+                fb_key_json = st.secrets["FIREBASE_SERVICE_ACCOUNT"]
+                fb_key_dict = json.loads(fb_key_json)
+            # Case 2: JSON 내용만 "{ ... }" 복붙했을 때
+            elif "project_id" in st.secrets:
+                fb_key_dict = dict(st.secrets)
+            else:
+                st.error("🚨 Secrets에 파이어베이스 키가 없습니다.")
+                return None
+            
             cred = credentials.Certificate(fb_key_dict)
             firebase_admin.initialize_app(cred)
         except Exception as e:
@@ -95,17 +102,16 @@ db = init_firebase()
 @st.cache_data(ttl=5) # 5초 실시간 갱신
 def load_data():
     try:
-        # Firebase에서 모든 문서 가져오기
+        # Firebase에서 데이터 스트림
         docs = db.collection("Hotel_Prices").stream()
         data_list = [doc.to_dict() for doc in docs]
         
         if not data_list:
             return pd.DataFrame()
-            
+        
         data = pd.DataFrame(data_list)
         
-        # [데이터 정밀 정제] 지배인님의 원본 로직 100% 이식 (컬럼명 매핑 필수)
-        # Firebase(영어) -> 지배인님 코드(한글) 매핑
+        # [중요] Firebase 컬럼(영어)을 지배인님 기존 코드 컬럼(한글)으로 매핑
         data = data.rename(columns={
             'hotel_name': '호텔명',
             'target_date': '날짜',
@@ -114,15 +120,19 @@ def load_data():
             'price': '가격',
             'collected_at': '수집시간'
         })
-
+        
+        # [데이터 정밀 정제 - 원본 로직 100% 유지]
         data['호텔명'] = data['호텔명'].astype(str).str.replace(" ", "").str.strip()
         data['날짜'] = data['날짜'].astype(str).str.replace(" ", "").str.strip()
         data['객실타입'] = data['객실타입'].astype(str).str.strip()
         data['판매처'] = data['판매처'].astype(str).str.strip()
+        # 가격 데이터 전처리 (쉼표 제거 등 안전장치 포함)
+        data['가격'] = data['가격'].astype(str).str.replace(',', '').str.replace('원', '')
         data['가격'] = pd.to_numeric(data['가격'], errors='coerce')
         
         # 날짜 데이터 처리 (그래프 핵심 컬럼)
         data['수집시간_dt'] = pd.to_datetime(data['수집시간'], errors='coerce')
+        # 수집일을 문자열로 변환하여 에러 방지
         data['수집일'] = data['수집시간_dt'].dt.strftime('%Y-%m-%d')
         data['투숙일_dt'] = pd.to_datetime(data['날짜'], errors='coerce')
         
@@ -137,12 +147,12 @@ def load_data():
         
         return data
     except Exception as e:
-        # 데이터가 없을 때 빈 프레임 반환
+        # 에러 발생 시 빈 데이터프레임 반환 (앱 다운 방지)
         return pd.DataFrame()
 
-# ---------------------------------------------------------
-# 3. 메인 분석 및 시각화 로직 (여기서부터 100% 지배인님 코드 그대로)
-# ---------------------------------------------------------
+# ------------------------------------------------------------------
+# 3. 메인 로직 (여기서부터 지배인님 원본 코드 100% 동일)
+# ------------------------------------------------------------------
 try:
     df = load_data()
     
@@ -219,7 +229,8 @@ try:
                 strategy = "💎 프리미엄 수익 극대화 구간 (Premium Value)"
                 action = "시장 평균보다 고가입니다. 객실 가동률이 50% 미만으로 떨어지지 않도록 투숙 3일 전 땡처리 물량을 전략적으로 배분하십시오."
 
-            # --- [글로벌 채널 분석 복원] ---
+            # --- [여기서부터 복사해서 붙여넣으세요] ---
+            
             st.markdown("---") # 구분선 하나 넣어주면 깔끔합니다.
             major_channels = ['아고다', '트립닷컴']
             # 엠버의 아고다/트립닷컴 데이터만 추출
@@ -257,6 +268,8 @@ try:
             * **수익 분석:** 현재 점유율 50%대에서 매출 170억 목표 달성을 위해서는 객실 단가(ADR) 보다는 **가동률(Occ) 70% 선점**이 최우선 과제입니다.
             * **실행 지침:** {action}
             """)
+    
+    
     
         else:
             st.info("💡 분석을 위한 충분한 데이터가 확보되지 않았습니다. 필터를 조정해 주세요.")
